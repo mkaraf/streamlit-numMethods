@@ -3,7 +3,6 @@ import numpy as np
 import streamlit as st
 import pandas as pd
 import altair as alt
-from handcalcs.decorator import handcalc
 from scipy.integrate import odeint
 from functools import wraps
 from math import sqrt
