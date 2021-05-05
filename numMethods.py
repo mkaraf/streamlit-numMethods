@@ -65,21 +65,29 @@ def get_tableau_abc4():
 
 
 def euler(f, y0, x, h):
-    n = len(x)
-    y = np.empty(n, float)
+    ode_system = len(y0)  # if more then one init condition -> system of ODE's
+    n = len(x)  # number of required steps
+
+    # init variables for calc
+    y = [[0] * ode_system for i in range(n)]
     y[0] = y0
+
     for i in range(0, n - 1):
-        y[i + 1] = y[i] + h * f(x[i], y[i])
+        y[i + 1][:] = np.add(y[i], np.multiply(f(x[i], y[i]), h))
     return y
 
 
 def heun(f, y0, x, h):
-    n = len(x)
-    y = np.empty(n, float)
+    ode_system = len(y0)  # if more then one init condition -> system of ODE's
+    n = len(x)  # number of required steps
+
+    # init variables for calc
+    y = [[0] * ode_system for i in range(n)]
     y[0] = y0
+
     for i in range(0, n - 1):
-        y_pred = y[i] + h * f(x[i], y[i])
-        y[i + 1] = y[i] + h / 2 * (f(x[i], y[i]) + f(x[i], y_pred))
+        y_pred = np.add(y[i], np.multiply(f(x[i], y[i]), h))
+        y[i + 1][:] = np.add(y[i], np.multiply(np.add(f(x[i], y[i]), f(x[i+1], y_pred)), h/2))
     return y
 
 
@@ -105,10 +113,12 @@ def rkx(f, y0, x, h, order):
             y_curr = np.add(mul, y[i])
             x_curr = x[i] + h * A[o]
 
+            if 1 == ode_system:
+                y_curr = [y_curr]
+
             k[o][:] = np.multiply(f(x_curr, y_curr), h)
 
         y[i + 1][:] = np.add(y[i], sum(np.multiply([*zip(*k)], C).T))
-
     return y
 
 
@@ -116,19 +126,23 @@ def rkx(f, y0, x, h, order):
 
 
 def abx(f, y0, x, h, order):
-    n = len(x)
+    ode_system = len(y0)  # if more then one init condition -> system of ODE's
+    n = len(x)  # number of required steps
 
-    y = np.empty(n - order, float)
-    tmp = 0
+    # init variables for calc
+    tmp = np.empty(ode_system, float)
 
-    y = np.append(rkx(f, [y0], x[:order], h, 4), y)
+    y_m = [[0] * ode_system for i in range(n - order)]
+    y_s = rkx(f, y0, x[:order], h, 4)
+    y = np.vstack((y_s, y_m))
 
     A, B = get_tableau_abx(order)
 
     for i in range(order - 1, n - 1):
         for j in range(0, order):
-            tmp += f(x[i - j], y[i - j]) * B[j]
-        y[i + 1] = y[i] + A * h * tmp
+            tmp = np.add(tmp, np.multiply(f(x[i - j], y[i - j]), B[j]))
+
+        y[i + 1] = np.add(y[i], np.multiply(np.multiply(A, h), tmp))
         tmp = 0
     return y
 
@@ -137,12 +151,16 @@ def abx(f, y0, x, h, order):
 
 
 def abm4_pc(f, y0, x, h):
-    n = len(x)
+    ode_system = len(y0)  # if more then one init condition -> system of ODE's
+    n = len(x)  # number of required steps
     order = 4
 
-    y = np.empty(n - order, float)
+    # init variables for calc
+    tmp = np.empty(ode_system, float)
 
-    y = np.append(rkx(f, [y0], x[:order], h, order), y)
+    y_m = [[0] * ode_system for i in range(n - order)]
+    y_s = rkx(f, y0, x[:order], h, 4)
+    y = np.vstack((y_s, y_m))
 
     tmp_pred = 0
     tmp_kor = 0
@@ -151,12 +169,12 @@ def abm4_pc(f, y0, x, h):
 
     for i in range(order - 1, n - 1):
         for j in range(0, order):
-            tmp_pred += f(x[i - j], y[i - j]) * B_PRED[j]
-        y[i + 1] = y[i] + A * h * tmp_pred
+            tmp_pred = np.add(tmp_pred, np.multiply(f(x[i - j], y[i - j]), B_PRED[j]))
+        y[i + 1][:] = np.add(y[i], np.multiply(np.multiply(A, h), tmp_pred))
 
         for k in range(0, order):
-            tmp_kor += f(x[i - k + 1], y[i - k + 1]) * B_COR[k]
-        y[i + 1] = y[i] + A * h * tmp_kor
+            tmp_kor = np.add(tmp_kor, np.multiply(f(x[i - k + 1], y[i - k + 1]), B_COR[k]))
+        y[i + 1] = np.add(y[i], np.multiply(np.multiply(A, h), tmp_kor))
 
         tmp_pred = 0
         tmp_kor = 0
@@ -166,19 +184,17 @@ def abm4_pc(f, y0, x, h):
 #   ADAPTIVE-STEP METHODS     #
 
 
-def rk_gen_k(A, B, f, y0, x, h):
-    order = len(A)
-    k = np.zeros(order, float)
-    for i in range(0, order):
-        k[i] = h * f(x + h * A[i], y0 + sum(np.multiply(k, B[i])))
-    return k
-
-
 def rkf45(f, y0, a, b, tol, h_max, h_min):
     A, B, C, CT = get_tableau_rkf45()
+    order = 6
 
     # Initialize return status
     e = 0
+
+    ode_system = len(y0)  # if more then one init condition -> system of ODE's
+
+    # init variables for calc
+    var = np.empty(ode_system, float)
 
     # Set x and y according to initial condition and assume that h starts
     # with a value that is as large as possible.
@@ -189,24 +205,35 @@ def rkf45(f, y0, a, b, tol, h_max, h_min):
     # Initialize arrays that will be returned
     x = np.array([x_cur])
     y = np.array([y_cur])
+    k = [[0] * ode_system for i in range(order)]
 
     while x_cur < b:
         # Adjust step size when we get to last interval
         if x_cur + h > b:
             h = b - x_cur
 
-        # Compute values needed to compute truncation error estimate and
-        # the 4th order RK estimate.
-        k = rk_gen_k(A, B, f, y_cur, x_cur, h)
+        for o in range(0, order):
+            var = np.multiply([*zip(*k)], B[o])
+            mul = sum(np.array([*zip(*var)]))
+
+            if 1 == ode_system:
+                k[o][:] = np.multiply(f(x_cur + h * A[o], np.add(mul, [y_cur])), h)
+            else:
+                k[o][:] = np.multiply(f(x_cur + h * A[o], np.add(mul, y_cur)), h)
 
         # Compute the estimate of the local truncation error.
         # If it's small enough then we accept this step and save the 4th order estimate.
-        r = abs(sum(np.multiply(k, CT))) / h
+        r = max(abs(sum(np.multiply([*zip(*k)], CT).T)) / h)
+        if 0 == r:
+            e = -1
+            break
+
         if r <= tol:
             x_cur = x_cur + h
-            y_cur = y_cur + sum(np.multiply(k[:5], C))
+            y_cur = np.add(y_cur, sum(np.multiply([*zip(*k[:5])], C).T))
+
             x = np.append(x, x_cur)
-            y = np.append(y, [y_cur], 0)
+            y = np.vstack((y, y_cur))
 
         h = h * min(max(0.84 * (tol / r) ** (1 / 4), 0.1), 4.0)
 
@@ -218,97 +245,3 @@ def rkf45(f, y0, a, b, tol, h_max, h_min):
             break
 
     return x, y, e
-
-
-#   OLD GARBAGE     #
-
-
-# def rk_gen_k(A, B, f, y0, x, h):
-#     order = len(A)
-#     k = np.zeros(order, float)
-#     for i in range(0, order):
-#         k[i] = h * f(x + h * A[i], y0 + sum(np.multiply(k, B[i])))
-#     return k
-#
-#
-# def rk_calc(A, B, C, f, y0, x, h):
-#     steps = len(x)
-#     order = len(A)
-#     y = np.zeros(steps, float)
-#     k = np.zeros(order, float)
-#     y[0] = y0
-#     for i in range(0, steps - 1):
-#         k = rk_gen_k(A, B, f, y[i], x[i], h)
-#         y[i + 1] = y[i] + sum(np.multiply(k, C))
-#     return y
-#
-#
-# def rk2(f, y0, x, h):
-#     A = (0, 1 / 2)
-#     B = [(0, 0), (1 / 2, 0)]
-#     C = (0, 1)
-#     return rk_calc(A, B, C, f, y0, x, h)
-#
-#
-# def rk3(f, y0, x, h):
-#     A = (0, 1 / 2, 1)
-#     B = [(0, 0, 0), (1 / 2, 0, 0), (-1, 2, 0)]
-#     C = (1 / 6, 2 / 3, 1 / 6)
-#     return rk_calc(A, B, C, f, y0, x, h)
-#
-#
-# def rk4(f, y0, x, h):
-#     A = (0, 1 / 2, 1 / 2, 1)
-#     B = [(0, 0, 0, 0), (1 / 2, 0, 0, 0), (0, 1 / 2, 0, 0), (0, 0, 1, 0)]
-#     C = (1 / 6, 1 / 3, 1 / 3, 1 / 6)
-#     return rk_calc(A, B, C, f, y0, x, h)
-
-
-# def ab2(f, y0, x, h):
-#     n = len(x)
-#     y = np.empty(n - 2, float)
-#
-#     y = np.append(rk4(f, y0, x[:2], h), y)
-#
-#     for i in range(1, n - 1):
-#         y[i + 1] = y[i] + 1 / 2 * h * (3 * f(x[i], y[i]) - f(x[i - 1], y[i - 1]))
-#     return y
-#
-#
-# def ab3(f, y0, x, h):
-#     n = len(x)
-#     y = np.empty(n - 3, float)
-#
-#     y = np.append(rk4(f, y0, x[:3], h), y)
-#
-#     for i in range(2, n - 1):
-#         y[i + 1] = y[i] + 1 / 12 * h * (23 * f(x[i], y[i]) - 16 * f(x[i - 1], y[i - 1]) + 5 * f(x[i - 2], y[i - 2]))
-#     return y
-#
-#
-# def ab4(f, y0, x, h):
-#     n = len(x)
-#     y = np.empty(n - 4, float)
-#
-#     y = np.append(rk4(f, y0, x[:4], h), y)
-#
-#     for i in range(3, n - 1):
-#         y[i + 1] = y[i] + 1 / 24 * h * (55 * f(x[i], y[i]) - 59 * f(x[i - 1], y[i - 1]) + 37 * f(x[i - 2], y[i - 2])
-#                                         - 9 * f(x[i - 3], y[i - 3]))
-#     return y
-
-
-# def abm4_pc(f, y0, x, h):
-#     n = len(x)
-#     y = np.empty(n - 4, float)
-#
-#     y = np.append(rk4(f, y0, x[:4], h), y)
-#
-#     for i in range(3, n - 1):
-#         y_p = y[i] + 1 / 24 * h * (55 * f(x[i], y[i]) - 59 * f(x[i - 1], y[i - 1]) + 37 * f(x[i - 2], y[i - 2])
-#                                    - 9 * f(x[i - 3], y[i - 3]))
-#
-#         y[i + 1] = y[i] + 1 / 24 * h * (9 * f(x[i+1], y_p) + 19 * f(x[i], y[i]) - 5 * f(x[i - 1], y[i - 1])
-#                                         + f(x[i - 2], y[i - 2]))
-#
-#     return y
