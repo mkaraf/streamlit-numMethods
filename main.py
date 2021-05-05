@@ -6,6 +6,7 @@ import altair as alt
 from time import perf_counter
 from scipy.integrate import odeint
 from functools import wraps
+from math import sin, cos
 
 
 def flip(func):
@@ -17,85 +18,96 @@ def flip(func):
     return newfunc
 
 
-f1 = lambda x, y: y
+f1 = lambda x, y: y[0]
 s1 = "y' - y = 0"
-f2 = lambda x, y: -y
+f2 = lambda x, y: -y[0]
 s2 = "y' + y = 0"
-f3 = lambda x, y: -x * y**2
+f3 = lambda x, y: -x * y[0]**2
 s3 = "y' + x * y^2 = 0"
-f4 = lambda x, y: x ** 2 - y
+f4 = lambda x, y: x ** 2 - y[0]
 s4 = "y' + y = x^2"
-f5 = lambda x, y: -20*y + 20*x + 21
+# f5 = lambda x, y: -20*y + 20*x + 21
+def f5(x, y):
+    return -20*y[0] + 20*x + 21
 s5 = "y' + 20y -21 = -20x"
-f6 = lambda x, y: 1 + x**2
+# f6 = lambda x, y: 1 + x**2
+def f6(x, y):
+    return (y[0] + x**2)
 s6 = "y' - 1 = x^2"
-f7 = lambda x, y: x*y
+f7 = lambda x, y: x*y[0]
 s7 = "y' xy = 0"
-f8 = lambda x, y: y - x**2 + 1
+f8 = lambda x, y: y[0] - x**2 + 1
 s8 = "y' - y = -x^2 +1"
-f9 = lambda x, y: y + x
+f9 = lambda x, y: y[0] + x
 s9 = "y' - y = x"
 
 
-EQUATIONS = [s1, s2, s3, s4, s5, s6, s7, s8, s9]
-MODELS = [f1, f2, f3, f4, f5, f6, f7, f8, f9]
-# METHODS = ["Euer","Heun","RK2","RK3","RK4","AB2","AB3","AB4","ABM PRED-COR","RKF45"]
+# y'' + y = 4x + 10*sin(x)
+# y' = y'
+# y'' = 4x + 10sin(x) - y
+s10 = "y'' + y = 4x + 10*sin(x)"
+def f10(x, y):
+    return (y[1], 4 * x + 10 * sin(x) - y[0])
+
+# y''' + 4y'' + 2y' - y = 0
+# y' = y'
+# y'' = y''
+# y''' = -4y'' -2y' +y
+s11 = "y''' = -4y'' -2y' +y"
+def f11(x, y):
+    return (y[2], y[1], - 4 * y[2] - 2 * y[1] - y[0])
+
+
+EQUATIONS = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11]
+MODELS = [f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11]
+# METHODS = ["Euler","Heun","RK2","RK3","RK4","AB2","AB3","AB4","ABM PRED-COR","RKF45"]
 
 
 def getDataFrame(f, a, b, n, y0):
-    # Calculate ODE via methods
     analytic = odeint(flip(f), y0, x)
 
+    start_time_p0 = perf_counter()
+    euler = np.array(numMethods.euler(f, y0, x, h))[:, 0]
+
     start_time_p1 = perf_counter()
-    euler = numMethods.euler(f, y0, x, h)
-    eul_exec_time = perf_counter() - start_time_p1
+    heun = np.array(numMethods.heun(f, y0, x, h))[:, 0]
 
     start_time_p2 = perf_counter()
-    heun = numMethods.heun(f, y0, x, h)
-    heun_exec_time = perf_counter() - start_time_p2
+    rk2 = np.array(numMethods.rkx(f, y0, x, h, 2))[:, 0]
 
     start_time_p3 = perf_counter()
-    rk2 = np.array(numMethods.rkx(f, [y0], x, h, 2)).flatten()
-    rk2_exec_time = perf_counter() - start_time_p3
+    rk3 = np.array(numMethods.rkx(f, y0, x, h, 3))[:, 0]
 
     start_time_p4 = perf_counter()
-    rk3 = np.array(numMethods.rkx(f, [y0], x, h, 3)).flatten()
-    rk3_exec_time = perf_counter() - start_time_p4
+    rk4 = np.array(numMethods.rkx(f, y0, x, h, 4))[:, 0]
 
     start_time_p5 = perf_counter()
-    rk4 = np.array(numMethods.rkx(f, [y0], x, h, 4)).flatten()
-    rk4_exec_time = perf_counter() - start_time_p5
+    ab2 = np.array(numMethods.abx(f, y0, x, h, 2))[:, 0]
 
     start_time_p6 = perf_counter()
-    ab2 = numMethods.abx(f, y0, x, h, 2)
-    ab2_exec_time = perf_counter() - start_time_p6
+    ab3 = np.array(numMethods.abx(f, y0, x, h, 3))[:, 0]
 
     start_time_p7 = perf_counter()
-    ab3 = numMethods.abx(f, y0, x, h, 3)
-    ab3_exec_time = perf_counter() - start_time_p7
+    ab4 = np.array(numMethods.abx(f, y0, x, h, 4))[:, 0]
 
     start_time_p8 = perf_counter()
-    ab4 = numMethods.abx(f, y0, x, h, 4)
-    ab4_exec_time = perf_counter() - start_time_p8
+    abm4_pc = np.array(numMethods.abm4_pc(f, y0, x, h))[:, 0]
 
     start_time_p9 = perf_counter()
-    rkf_x, rkf_y, rkf45_status = numMethods.rkf45(f, y0, a, b, 1*10**tol, h_max, h_min)
-    rkf45_exec_time = perf_counter() - start_time_p9
-
+    rkf_x, rkf_y, rkf45_status = np.array(numMethods.rkf45(f, y0, a, b, 1*10**tol, h_max, h_min))
+    rkf_y = np.array(rkf_y)[:, 0]
     start_time_p10 = perf_counter()
-    abm4_pc = numMethods.abm4_pc(f, y0, x, h)
-    stop_time = perf_counter()
-    abm4_exec_time = stop_time - start_time_p10
 
-    max_time = ((stop_time - start_time_p1) / 100)
+    total_time = ((start_time_p10 - start_time_p0) / 100)
 
-    df_et = pd.DataFrame()
-    df_et['ET'] = [eul_exec_time / max_time, heun_exec_time / max_time, rk2_exec_time / max_time,
-                             rk3_exec_time / max_time, rk4_exec_time / max_time, ab2_exec_time / max_time,
-                             ab3_exec_time / max_time, ab4_exec_time / max_time, rkf45_exec_time / max_time,
-                             abm4_exec_time / max_time]
-    df_et.index = ['Euler', 'Heun', 'RK2', 'RK3', 'RK4', 'AB2', 'AB3', 'AB4', 'RKF45','ABM4_PC']
-    df_et['method'] = df_et.index
+
+    # df_et = pd.DataFrame()
+    # df_et['ET'] = [eul_exec_time / max_time, heun_exec_time / max_time, rk2_exec_time / max_time,
+    #                          rk3_exec_time / max_time, rk4_exec_time / max_time, ab2_exec_time / max_time,
+    #                          ab3_exec_time / max_time, ab4_exec_time / max_time, rkf45_exec_time / max_time,
+    #                          abm4_exec_time / max_time]
+    # df_et.index = ['Euler', 'Heun', 'RK2', 'RK3', 'RK4', 'AB2', 'AB3', 'AB4', 'ABM4_PC', 'RKF45']
+    # df_et['method'] = df_et.index
 
     if 0 == rkf45_status:
         df_rkf45 = pd.DataFrame({
@@ -106,7 +118,6 @@ def getDataFrame(f, a, b, n, y0):
         df_rkf45.index.name = 'x'
     else:
         df_rkf45 = 0
-
 
     # DATAFRAME
     df = pd.DataFrame({
@@ -124,7 +135,8 @@ def getDataFrame(f, a, b, n, y0):
         index=x
     )
     df.index.name = 'x'
-    return df, df_rkf45, df_et, rkf45_status
+
+    return df, df_rkf45, rkf45_status #, df_et
 
 
 def getChart(df, df_rkf45, rkf45_status):
@@ -136,7 +148,6 @@ def getChart(df, df_rkf45, rkf45_status):
         source = pd.concat(frames)
     else:
         source = source_1
-
 
     selection = alt.selection_multi(fields=['method'])
     color = alt.condition(selection,
@@ -157,7 +168,8 @@ def getChart(df, df_rkf45, rkf45_status):
         selection
     )
 
-    return line_chart | make_selector
+    st.altair_chart(line_chart | make_selector)
+    return
 
 
 def getChart2(df_et):
@@ -186,18 +198,28 @@ with header:
 with sidebar:
     st.sidebar.header("User Input Parameters")
     equation = st.sidebar.selectbox("Select equation:", EQUATIONS)
+    id_mod = EQUATIONS.index(equation)
 
 
     st.sidebar.markdown("***")
     st.sidebar.markdown("Initial conditions")
-    y0 = st.sidebar.number_input("y0 = ", 0.0)
 
-    # check_boxes = [st.sidebar.checkbox(method, key=method) for method in METHODS]
+    if id_mod < 8:
+        y0 = [st.sidebar.number_input("y0 = ", 0.0)]
+    elif id_mod == 9:
+        y0 = [st.sidebar.number_input("y0 = ", 0.0),
+                st.sidebar.number_input("z0 = ", 0.0),
+                ]
+    elif id_mod == 10:
+        y0 = [st.sidebar.number_input("y0 = ", 0.0),
+                st.sidebar.number_input("z0 = ", 0.0),
+                st.sidebar.number_input("u0 = ", 0.0),
+                ]
 
     st.sidebar.markdown("***")
     st.sidebar.markdown("RKF45")
-    h_min, h_max = st.sidebar.slider("step interval:", 0.001, 1.0, (0.001, 0.75), 0.001)
-    tol = st.sidebar.slider("Tolerance: (1e(x)):", -12, -5, -7)
+    h_min, h_max = st.sidebar.slider("Size of the step:", 0.001, 1.000, (0.100, 0.750), 0.001)
+    tol = st.sidebar.slider("Tolerance: (1e(x)):", -12, -2, -5)
 
 
 with features:
@@ -212,28 +234,31 @@ with features:
     a, b = st.slider("Interval:", -10.0, 10.0, (0.0, 5.0), 0.1)
 
     st.markdown("***")
-    id_mod = EQUATIONS.index(equation)
     f = MODELS[id_mod]
     h = (b - a) / n
     x = np.linspace(a, b, n + 1)
 
     st.write("Size of the step: ", h)
-    st.write("y0 = ", y0)
+    st.write("Initial conditions = ", y0)
     st.markdown("***")
 
 
 with interactive:
-    df, df_rkf45, df_et, rkf45_status = getDataFrame(f, a, b, n, y0)
-    chart = getChart(df, df_rkf45, rkf45_status)
-    chart2 = getChart2(df_et)
+    df, df_rkf45, rkf45_status = getDataFrame(f, a, b, n, y0)
 
     if -1 == rkf45_status:
         st.markdown("Warning:")
-        st.markdown("RKF45 can't be solved with choose parameters, try change minimum of the interval or tolerance.")
+        st.markdown("RKF45 could not converge to the required tolerance with chose minimum step size")
+
+    st.text("Note: You can select methods in legend (for multiple select hold SHIFT and click)")
+    getChart(df, df_rkf45, rkf45_status)
+
+    # chart = getChart(df, df_rkf45, rkf45_status)
+    # chart2 = getChart2(df_et)
 
     # <span styl="color:red"> TEST </span>
     # st.markdown(f'<span styl=color:red> TEST </span>',unsafe_allow_html=True)
-    st.altair_chart(chart)
-    st.markdown("Note: By holding shift you can pick multiple choices in the legend")
+    # st.altair_chart(chart)
+    st.markdown("***")
     st.table(df)
-    st.altair_chart(chart2)
+    # st.altair_chart(chart2)
