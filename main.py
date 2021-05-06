@@ -1,4 +1,5 @@
 import numMethods
+import models
 import numpy as np
 import streamlit as st
 import pandas as pd
@@ -6,7 +7,14 @@ import altair as alt
 from time import perf_counter
 from scipy.integrate import odeint
 from functools import wraps
-from math import sin, cos
+
+
+# EQUATIONS = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11]
+# MODELS = [f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11]
+METHODS = ["NONE", "Euler", "Heun","Runge-Kutta 2", "Runge-Kutta 3","Runge-Kutta 4","Adams-Basforth 2",
+           "Adams-Basforth 3", "Adams-Basforth 4", "Adams-Basforth-Moulton", "Runge-Kutta Fehlberg 45"]
+EQUATIONS = models.get_model_str()
+MODELS = [models.f0, models.f1, models.f2, models.f3, models.f4, models.f5]
 
 
 def flip(func):
@@ -14,53 +22,151 @@ def flip(func):
     @wraps(func)
     def newfunc(*args):
         return func(*args[::-1])
-
     return newfunc
 
 
-f1 = lambda x, y: y[0]
-s1 = "y' - y = 0"
-f2 = lambda x, y: -y[0]
-s2 = "y' + y = 0"
-f3 = lambda x, y: -x * y[0]**2
-s3 = "y' + x * y^2 = 0"
-f4 = lambda x, y: x ** 2 - y[0]
-s4 = "y' + y = x^2"
-# f5 = lambda x, y: -20*y + 20*x + 21
-def f5(x, y):
-    return -20*y[0] + 20*x + 21
-s5 = "y' + 20y -21 = -20x"
-# f6 = lambda x, y: 1 + x**2
-def f6(x, y):
-    return (y[0] + x**2)
-s6 = "y' - 1 = x^2"
-f7 = lambda x, y: x*y[0]
-s7 = "y' xy = 0"
-f8 = lambda x, y: y[0] - x**2 + 1
-s8 = "y' - y = -x^2 +1"
-f9 = lambda x, y: y[0] + x
-s9 = "y' - y = x"
+def get_latex_method(method):
+    if method == "Euler":
+        show_euler()
+    elif method == "Heun":
+        show_heun()
+    elif method == "Runge-Kutta 2":
+        show_rk2()
+    elif method == "Runge-Kutta 3":
+        show_rk3()
+    elif method == "Runge-Kutta 4":
+        show_rk4()
+    elif method == "Adams-Basforth 2":
+        show_ab2()
+    elif method == "Adams-Basforth 3":
+        show_ab3()
+    elif method == "Adams-Basforth 4":
+        show_ab4()
+    elif method == "Adams-Basforth-Moulton":
+        show_abm4()
+    elif method == "Runge-Kutta Fehlberg 45":
+        show_rkf45()
+    return
 
 
-# y'' + y = 4x + 10*sin(x)
-# y' = y'
-# y'' = 4x + 10sin(x) - y
-s10 = "y'' + y = 4x + 10*sin(x)"
-def f10(x, y):
-    return (y[1], 4 * x + 10 * sin(x) - y[0])
-
-# y''' + 4y'' + 2y' - y = 0
-# y' = y'
-# y'' = y''
-# y''' = -4y'' -2y' +y
-s11 = "y''' = -4y'' -2y' +y"
-def f11(x, y):
-    return (y[2], y[1], - 4 * y[2] - 2 * y[1] - y[0])
+def show_euler():
+    st.latex("y_{(i+1)} = y_{(i)}  + h f(x_{(i)}, y_{(i)})")
+    return
 
 
-EQUATIONS = [s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11]
-MODELS = [f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11]
-# METHODS = ["Euler","Heun","RK2","RK3","RK4","AB2","AB3","AB4","ABM PRED-COR","RKF45"]
+def show_heun():
+    st.latex("y_{pred} = y_{(i)}  + h f(x_{(i)}, y_{(i)})")
+    st.latex("y_{(i+1)} = y_{(i)} + \\frac {1}{2} h (f(x_{(i)}, y_{(i)}) + f(x_{(i+1)}, y_{pred}))")
+    return
+
+
+def show_rk2():
+    st.latex('C = \\begin{pmatrix} 0 \\\\\\ 1  \end{pmatrix}'
+             '\\quad'
+             '\ A = \\begin{pmatrix} 0 & 0 \\\\ \\ 1/2 & 0 \end{pmatrix}'
+             '\\quad'
+             '\\ B = \\begin{pmatrix} 0 & 1/2  \end{pmatrix}')
+
+    st.latex("k_1 = f(x_{(i)}, y_{(i)})")
+    st.latex("k_2 = f(x_{(i)} + h C_2, y_{(i)} + h(A_{21}k_1))")
+    st.latex("y_{(i+1)} = y_{(i)}  + h \displaystyle\sum_{j=1}^2 B_jk_j")
+    return
+
+
+def show_rk3():
+    st.latex('C = \\begin{pmatrix} 0 \\\\\\ 1/2 \\\\\\ 1 \end{pmatrix}'
+             '\\quad'
+             '\ A = \\begin{pmatrix} 0 & 0 & 0 \\\\\\ 1/2 & 0 & 0 \\\\\\ -1 & 2 & 0 \end{pmatrix}'
+             '\\quad'
+             '\\ B = \\begin{pmatrix} 1/6 & 2/3 & 1/6  \end{pmatrix}')
+
+    st.latex("k_1 = f(x_{(i)}, y_{(i)})")
+    st.latex("k_2 = f(x_{(i)} + h C_2, y_{(i)} + h(A_{21}k_1))")
+    st.latex("k_3 = f(x_{(i)} + h C_3, y_{(i)} + h(A_{31}k_1 + A_{32}k_2))")
+    st.latex("y_{(i+1)} = y_{(i)}  + h \displaystyle\sum_{j=1}^3 B_jk_j")
+    return
+
+
+def show_rk4():
+    st.latex('C = \\begin{pmatrix} 1/6 \\\\\\ 1/3 \\\\\\ 1/3 \\\\\\ 1/6 \end{pmatrix}'
+             '\\quad'
+             '\ A = \\begin{pmatrix} 0 & 0 & 0 & 0 \\\\\\ 1/2 & 0 & 0 & 0 \\\\\\ 0 & 1/2 & 0 & 0 '
+             '\\\\\\ 0 & 0 & 1 & 0 \end{pmatrix}'
+             '\\quad'
+             '\\ B = \\begin{pmatrix} 0 & 1/2 & 1/2 & 1 \end{pmatrix}')
+
+    st.latex("k_1 = f(x_{(i)}, y_{(i)})")
+    st.latex("k_2 = f(x_{(i)} + h C_2, y_{(i)} + h(A_{21}k_1))")
+    st.latex("k_3 = f(x_{(i)} + h C_3, y_{(i)} + h(A_{31}k_1) + h(A_{32}k_2))")
+    st.latex("k_4 = f(x_{(i)} + h C_4, y_{(i)} + h(A_{41}k_1 + A_{42}k_2 + A_{43}k_3))")
+    st.latex("y_{(i+1)} = y_{(i)}  + h \displaystyle\sum_{j=1}^4 B_jk_j")
+    return
+
+
+def show_ab2():
+    st.latex("y_{(i+1)} = y_{(i)} + \\frac{1}{2} h (3f(x_{(i)},y_{(i)})-f(x_{(i-1)},y_{(i-1)}))")
+    return
+
+
+def show_ab3():
+    st.latex("y_{(i+1)} = y_{(i)} + \\frac{1}{12} h (23f(x_{(i)},y_{(i)})-16f(x_{(i-1)},y_{(i-1)})"
+             "+5f(x_{(i-2)},y_{(i-2)}))")
+    return
+
+
+def show_ab4():
+    st.latex("y_{(i+1)} = y_{(i)} + \\frac{1}{24} h (55f(x_{(i)},y_{(i)}) - 59f(x_{(i-1)},y_{(i-1)})"
+             "+37f(x_{(i-2)},y_{(i-2)}) - 9f(x_{(i-3)},y_{(i-3)}))")
+    return
+
+def show_abm4():
+    st.latex("y_{pred} = y_{(i)} + \\frac{1}{24} h (55f(x_{(i)},y_{(i)}) - 59f(x_{(i-1)},y_{(i-1)})"
+             "+37f(x_{(i-2)},y_{(i-2)}) - 9f(x_{(i-3)},y_{(i-3)}))")
+
+    st.latex("y_{(i+1)} = y_{(i)} + \\frac{1}{24} h (9f(x_{(i+1)},y_{pred}) + 19f(x_{(i)},y_{(i)})"
+             "-5f(x_{(i-1)},y_{(i-1)}) + f(x_{(i-2)},y_{(i-2)}))")
+    return
+
+def show_rkf45():
+    st.latex('C = \\begin{pmatrix} 0 \\\\ 1/4 \\\\ 3/8 \\\\ 12/13 \\\\ 1 \\\\ 1/2 \end{pmatrix}'
+             '\\quad'
+             '\\ A = \\begin{pmatrix} '
+             '\\ 0 & 0 & 0 & 0 & 0 & 0 \\\\'
+             '\\ 1/4 & 0 & 0 & 0 & 0 & 0 \\\\'
+             '\\ 3/32 & 9/32 & 0 & 0 & 0 & 0 \\\\'
+             '\\ 1932/2197 & -7200/2197 & 7296/2197 & 0 & 0 & 0 \\\\'
+             '\\ 439/216 & -8 & 3680/513 & -845/4104 & 0 & 0 \\\\'
+             '\\ -8/27 & 2 & -3544/2565 & 1859/4104 & -11/40 & 0'
+             '\end{pmatrix}')
+    st.latex('B^* = \\begin{pmatrix} 25/216 & 0 & 1408/2565 & 2197/4104 & -1/5 & 0 \end{pmatrix}')
+    st.latex('B = \\begin{pmatrix} 16/135 & 0 & 6656/12825 & 28561/56430 & -9/50 & 2/55\end{pmatrix}')
+
+    st.latex("k_1 = f(x_{(i)}, y_{(i)})")
+    st.latex("k_2 = f(x_{(i)} + h C_2, y_{(i)} + h(A_{21}k_1))")
+    st.latex("k_3 = f(x_{(i)} + h C_3, y_{(i)} + h(A_{31}k_1 + A_{32}k_2))")
+    st.latex("k_4 = f(x_{(i)} + h C_4, y_{(i)} + h(A_{41}k_1 + A_{42}k_2 + A_{43}k_3))")
+    st.latex("k_5 = f(x_{(i)} + h C_3, y_{(i)} + h(A_{51}k_1 + A_{52}k_2 + A_{53}k_3 + A_{54}k_4))")
+    st.latex("k_6 = f(x_{(i)} + h C_4, y_{(i)} + h(A_{61}k_1 + A_{62}k_2 + A_{63}k_3 + A_{64}k_4 + A_{65}k_5))")
+
+    st.latex("R = \\frac{1}{h} \\lvert 1/360k_1 - 128/4275k_3 - 2167/752460k_4 + 1/50k_5 + 2/55k_6 \\rvert")
+    st.latex("if\\;R\\le tolerance,\\;then\\;approximation\\;is\\;accepted:")
+    # st.write("if R <= tol then approximation is accepted, if R > tol then skip to the adjustation of step")
+    st.latex("y_{(i+1)}^{(4)} = y_{(i)}^{(4)}  + h \displaystyle\sum_{j=1}^5 B_j^*k_j")
+    st.latex("x_{i+1} = x_{i} + h")
+    # st.latex("y_{(i+1)}^{(5)} = y_{(i)}^{(4)}  + h \displaystyle\sum_{j=1}^6 B_jk_j")
+
+    # st.latex("R = \\frac{1}{h} \\lvert y_{(i)}^{(4)} - y_{(i)}^{(5)} \\rvert")
+    st.latex("Adjustation\\;of\\;the\\;step")
+    # st.write("Continue with adjustation of step")
+    st.latex("h_{adj} = 0,84 \\lparen \\frac{\\varepsilon*h}{R}\\rparen ^{0,25}")
+    st.latex("if\\;h_{adj}>h_{max}\\;then:")
+    st.latex("\\;h=h_{max}")
+    st.latex("else\\; if\\; h_{adj}>h_{min}\\; then:")
+    st.latex("\\;h=h_{adj}")
+    st.latex("else\\; stop\\;the\\;algorithm\\;because")
+    st.latex("converge\\;to\\;the\\;required\\;tolerance\\;with\\;chosen\\;minimum\\;step\\;size\\;is\\;not\\;possible")
+
+    return
 
 
 def getDataFrame(f, a, b, n, y0):
@@ -159,7 +265,7 @@ def getChart(df, df_rkf45, rkf45_status):
         y=alt.Y('y:Q', axis=alt.Axis(title='y [-]')),
         color=color,
         tooltip='Name:N'
-    ).properties(width=700, height=400).transform_filter(selection)#.interactive()
+    ).properties(width=700, height=400).transform_filter(selection)
 
     make_selector = alt.Chart(source).mark_rect().encode(
         y=alt.Y('method:N', axis=alt.Axis(orient='right')),
@@ -185,6 +291,7 @@ def getChart2(df_et):
 
 
 header = st.beta_container()
+methods = st.beta_container()
 sidebar = st.beta_container()
 features = st.beta_container()
 interactive = st.beta_container()
@@ -194,27 +301,34 @@ with header:
     st.title("Numerical Methods for solving ODE")
     st.text("Interactive application for solving Ordinary Differentiation Equations...")
 
+with methods:
+    show = st.selectbox("Show me the algorithm: ", METHODS)
+    get_latex_method(show)
+    st.markdown("***")
+
 
 with sidebar:
     st.sidebar.header("User Input Parameters")
     equation = st.sidebar.selectbox("Select equation:", EQUATIONS)
     id_mod = EQUATIONS.index(equation)
 
-
     st.sidebar.markdown("***")
     st.sidebar.markdown("Initial conditions")
 
-    if id_mod < 8:
-        y0 = [st.sidebar.number_input("y0 = ", 0.0)]
-    elif id_mod == 9:
-        y0 = [st.sidebar.number_input("y0 = ", 0.0),
-                st.sidebar.number_input("z0 = ", 0.0),
+    if id_mod < 4:
+        y0 = [st.sidebar.number_input("y(0) = ", 0.0)]
+        init_cond = ("y_{(0)}="+str(y0[0]))
+    elif id_mod == 4:
+        y0 = [st.sidebar.number_input("y'(0) = ", 0.0),
+                st.sidebar.number_input("y(0) = ", 0.0),
                 ]
-    elif id_mod == 10:
-        y0 = [st.sidebar.number_input("y0 = ", 0.0),
-                st.sidebar.number_input("z0 = ", 0.0),
-                st.sidebar.number_input("u0 = ", 0.0),
+        init_cond = ("y'_{(0)}=" + str(y0[0]),",\\;y_{(0)}=" + str(y0[1]))
+    elif id_mod == 5:
+        y0 = [st.sidebar.number_input("y''(0) = ", 0.0),
+                st.sidebar.number_input("y'(0) = ", 0.0),
+                st.sidebar.number_input("y(0) = ", 0.0),
                 ]
+        init_cond = ("y''_{(0)}=" + str(y0[0]) + ",\\;y'_{(0)}=" + str(y0[1]) + ",\\;y_{(0)}=" + str(y0[2]))
 
     st.sidebar.markdown("***")
     st.sidebar.markdown("RKF45")
@@ -223,15 +337,18 @@ with sidebar:
 
 
 with features:
-    st.write("Equation:")
-    #st.latex(equation.replace('c', str(c)))
+    st.write("Selected ordinary differential equation:")
+
     st.latex(equation)
+    st.latex(init_cond)
 
     # st.write("Analytical solution:")
     # x = np.linspace(-1000, 1000, n + 1)
+    # x_analytic = np.linspace(0, 1000, 1)
+    # analytic = odeint(flip(f), y0, x)
 
     n = st.slider("Number of steps:", 5, 100, 10)
-    a, b = st.slider("Interval:", -10.0, 10.0, (0.0, 5.0), 0.1)
+    a, b = st.slider("Interval x:", -10.0, 10.0, (0.0, 5.0), 0.1)
 
     st.markdown("***")
     f = MODELS[id_mod]
@@ -239,7 +356,6 @@ with features:
     x = np.linspace(a, b, n + 1)
 
     st.write("Size of the step: ", h)
-    st.write("Initial conditions = ", y0)
     st.markdown("***")
 
 
@@ -248,7 +364,8 @@ with interactive:
 
     if -1 == rkf45_status:
         st.markdown("Warning:")
-        st.markdown("RKF45 could not converge to the required tolerance with chose minimum step size")
+        st.markdown("RKF45 could not converge to the required tolerance with chose minimum step size, please adjust"
+                    " the parameters.")
 
     st.text("Note: You can select methods in legend (for multiple select hold SHIFT and click)")
     getChart(df, df_rkf45, rkf45_status)
