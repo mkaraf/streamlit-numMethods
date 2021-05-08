@@ -1,5 +1,7 @@
 from math import sin
 
+#   purpose of this module is provide defined models of the systems of Ordinary Differential Equations
+
 
 def get_model_str():
     str_f = [""] * 6
@@ -83,3 +85,4 @@ def f5(x, y):
 # s11 = "y''' = -4y'' -2y' +y"
 # def f11(x, y):
 #     return (y[2], y[1], - 4 * y[2] - 2 * y[1] - y[0])
+

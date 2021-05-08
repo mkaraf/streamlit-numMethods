@@ -1,8 +1,10 @@
 import numpy as np
 
+#   purpose of this module is provide functions of specific numerical methods
+#   for solving systems of Ordinary Differential Equations, in particular for Initial Value Problems
 
-#   TABLEAU'S FOR RK FAMILY METHODS    #
 
+#   TABLEAU FOR RK FAMILY METHODS    #
 def get_tableau_rkx(x):
     if 2 == x:
         A = (0, 1 / 2)
@@ -19,6 +21,7 @@ def get_tableau_rkx(x):
     return A, B, C
 
 
+#   TABLEAU FOR RKF45 METHODS    #
 def get_tableau_rkf45():
     # Coefficients used to compute the independent variable argument of f
     A = (0, 1 / 4, 3 / 8, 12 / 13, 1, 1 / 2)
@@ -38,9 +41,7 @@ def get_tableau_rkf45():
     return A, B, C, CT
 
 
-#   TABLEAU'S FOR ADAM'S FAMILY METHODS    #
-
-
+#   TABLEAU FOR ADAM'S FAMILY METHODS    #
 def get_tableau_abx(x):
     if 2 == x:
         A = 1 / 2
@@ -62,9 +63,21 @@ def get_tableau_abc4():
 
 
 #   SINGLE-STEP METHODS     #
-
-
 def euler(f, y0, x, h):
+    #     """Euler's method to solve system of ODE
+    #     USAGE:
+    #         y = euler(f, y0, x, h)
+    #     INPUT:
+    #         f     - function equal to dy/dx = f(y,x)
+    #         y0    - Array of initial conditions
+    #         x     - Array of independent variable values
+    #         h     - Step size
+    #     OUTPUT:
+    #         y     - NumPy array of corresponding solution function values
+    #     NOTES:
+    #         This function implements singlestep Euler's method
+    #         to solve the initial value problem
+
     ode_system = len(y0)  # if more then one init condition -> system of ODE's
     n = len(x)  # number of required steps
 
@@ -78,44 +91,72 @@ def euler(f, y0, x, h):
 
 
 def heun(f, y0, x, h):
+    #     """Heun's method to solve system of ODE
+    #     USAGE:
+    #         y = heun(f, y0, x, h)
+    #     INPUT:
+    #         f     - function equal to dy/dx = f(y,x)
+    #         y0    - Array of initial conditions
+    #         x     - Array of independent variable values
+    #         h     - Step size
+    #     OUTPUT:
+    #         y     - NumPy array of corresponding solution function values
+    #     NOTES:
+    #         This function implements singlestep Heun's method
+    #         to solve the initial value problem
+
+    # initialization of variables
     ode_system = len(y0)  # if more then one init condition -> system of ODE's
     n = len(x)  # number of required steps
-
-    # init variables for calc
     y = [[0] * ode_system for i in range(n)]
     y[0] = y0
 
     for i in range(0, n - 1):
+        # Explicit Euler's formula - PREDICTOR
         y_pred = np.add(y[i], np.multiply(f(x[i], y[i]), h))
+        # Implicit Euler's formula and usage of the trapezoidal rule - CORRECTOR
+        # Correction of the approximation from explicit formula
         y[i + 1][:] = np.add(y[i], np.multiply(np.add(f(x[i], y[i]), f(x[i+1], y_pred)), h/2))
     return y
 
 
 def rkx(f, y0, x, h, order):
+    #     """RUNGE-KUTTA method to solve system of ODE
+    #     USAGE:
+    #         y = rkx(f, y0, x, h, order)
+    #     INPUT:
+    #         f     - function equal to dy/dx = f(y,x)
+    #         y0    - Array of initial conditions
+    #         x     - Array of independent variable values
+    #         h     - Step size
+    #         order - Order of the method - states the accuracy of the approximation & how many coefs will be needed
+    #     OUTPUT:
+    #         y     - NumPy array of corresponding solution function values
+    #     NOTES:
+    #         This function implements singlestep RK method of nth order
+    #         to solve the initial value problem
+
+    # initialization of variables
     ode_system = len(y0)  # if more then one init condition -> system of ODE's
     n = len(x)  # number of required steps
-
-    # init variables for calc
     y = [[0] * ode_system for i in range(n)]
     k = [[0] * ode_system for i in range(order)]
-    var = np.empty(ode_system, float)
+    kB = np.empty(ode_system, float)
     y[0] = y0
 
-    # get corresponding Butcher's tableau according required order
+    # get coefficients for calculation
     A, B, C = get_tableau_rkx(order)
 
-    # start calculation
+    # calculation, until the end point b is reached
     for i in range(0, n - 1):
         for o in range(0, order):
-            var = np.multiply([*zip(*k)], B[o])
-            mul = sum(np.array([*zip(*var)]))
-
-            y_curr = np.add(mul, y[i])
+            # calculate of coefficients k
+            kB = np.multiply([*zip(*k)], B[o])
+            sumkB = sum(np.array([*zip(*kB)]))
+            y_curr = np.add(sumkB, y[i])
             x_curr = x[i] + h * A[o]
-
             if 1 == ode_system:
                 y_curr = [y_curr]
-
             k[o][:] = np.multiply(f(x_curr, y_curr), h)
 
         y[i + 1][:] = np.add(y[i], sum(np.multiply([*zip(*k)], C).T))
@@ -124,58 +165,86 @@ def rkx(f, y0, x, h, order):
 
 #   MULTI-STEP METHODS     #
 
-
 def abx(f, y0, x, h, order):
+    #     """ADAMS-BASFORTH method to solve system of ODE
+    #     USAGE:
+    #         y = abmx(f, y0, x, h, order)
+    #     INPUT:
+    #         f     - function equal to dy/dx = f(y,x)
+    #         y0    - Array of initial conditions
+    #         x     - Array of independent variable values
+    #         h     - Step size
+    #         order - Order of the method - states how many previous solutions y(i) are needed for approximation
+    #     OUTPUT:
+    #         y     - NumPy array of corresponding solution function values
+    #     NOTES:
+    #         This function implements multistep AB method of nth order
+    #         to solve the initial value problem
+
+    # initialization of variables
     ode_system = len(y0)  # if more then one init condition -> system of ODE's
     n = len(x)  # number of required steps
-
-    # init variables for calc
     tmp = np.empty(ode_system, float)
-
     y_m = [[0] * ode_system for i in range(n - order)]
+    # Initialization of calculation by RK4 method
     y_s = rkx(f, y0, x[:order], h, 4)
     y = np.vstack((y_s, y_m))
-
+    # get coefficients for calculation
     A, B = get_tableau_abx(order)
 
+    # calculation, until the end point b is reached
     for i in range(order - 1, n - 1):
         for j in range(0, order):
             tmp = np.add(tmp, np.multiply(f(x[i - j], y[i - j]), B[j]))
-
-        y[i + 1] = np.add(y[i], np.multiply(np.multiply(A, h), tmp))
+        y[i + 1][:] = np.add(y[i], np.multiply(np.multiply(A, h), tmp))
+        # Clear support variable for next iteration
         tmp = 0
     return y
 
 
 #   PREDICTOR-CORRECTOR METHODS  #
 
-
 def abm4_pc(f, y0, x, h):
-    ode_system = len(y0)  # if more then one init condition -> system of ODE's
-    n = len(x)  # number of required steps
+    #     """ADAMS-BASFORTH-MOULTON method to solve system of ODE
+    #     USAGE:
+    #         y = abm4_pc(f, y0, x, h)
+    #     INPUT:
+    #         f     - function equal to dy/dx = f(y,x)
+    #         y0    - Array of initial conditions
+    #         x     - Array of independent variable values
+    #         h     - Step size
+    #     OUTPUT:
+    #         y     - NumPy array of corresponding solution function values
+    #     NOTES:
+    #         This function implements multistep Predictor-Corector method ABM of 4th order
+    #         to solve the initial value problem
+
+    # initialization of variables
+    ode_system = len(y0)  # if more then one init condition -> system of ODE's is expected
+    n = len(x)            # number of required steps
     order = 4
-
-    # init variables for calc
     tmp = np.empty(ode_system, float)
-
     y_m = [[0] * ode_system for i in range(n - order)]
-    y_s = rkx(f, y0, x[:order], h, 4)
-    y = np.vstack((y_s, y_m))
-
     tmp_pred = 0
     tmp_kor = 0
-
+    # Initialization of calculation by RK4 method
+    y_s = rkx(f, y0, x[:order], h, 4)
+    y = np.vstack((y_s, y_m))
+    # get coefficients for calculation
     A, B_PRED, B_COR = get_tableau_abc4()
 
+    # calculation, until end the point b is reached
     for i in range(order - 1, n - 1):
+        # Calculation of explicit AB formula of 4th order - PREDICTOR
         for j in range(0, order):
             tmp_pred = np.add(tmp_pred, np.multiply(f(x[i - j], y[i - j]), B_PRED[j]))
         y[i + 1][:] = np.add(y[i], np.multiply(np.multiply(A, h), tmp_pred))
-
+        # Calculation of implicit AM formula of 4th order - CORRECTOR
+        # Correction of the approximation from explicit formula
         for k in range(0, order):
             tmp_kor = np.add(tmp_kor, np.multiply(f(x[i - k + 1], y[i - k + 1]), B_COR[k]))
         y[i + 1] = np.add(y[i], np.multiply(np.multiply(A, h), tmp_kor))
-
+        # Clear support variables for next iteration
         tmp_pred = 0
         tmp_kor = 0
     return y
@@ -183,65 +252,75 @@ def abm4_pc(f, y0, x, h):
 
 #   ADAPTIVE-STEP METHODS     #
 
-
 def rkf45(f, y0, a, b, tol, h_max, h_min):
-    A, B, C, CT = get_tableau_rkf45()
+    #     """Runge-Kutta-Fehlberg 45 method to solve system of ODE
+    #     USAGE:
+    #         t, x, e = rkf45(f, y0, a, b, tol, h_max, h_min)
+    #     INPUT:
+    #         f     - function equal to dy/dx = f(x,t)
+    #         y0    - Array of  of initial conditions
+    #         a     - left-hand endpoint of interval (initial condition is here)
+    #         b     - right-hand endpoint of interval
+    #         tol   - maximum value of local truncation error estimate
+    #         h_max  - maximum step size
+    #         h_min  - minimum step size
+    #     OUTPUT:
+    #         x     - NumPy array of independent variable values
+    #         y     - NumPy array of corresponding solution function values
+    #         e     - Return status ( 0 == successful, -1 == failure => tolerance not possible to reach)
+    #     NOTES:
+    #         This function implements 4th-5th order Runge-Kutta-Fehlberg method
+    #         to solve the initial value problem
+
+    # initialization of variables
     order = 6
-
-    # Initialize return status
     e = 0
-
-    ode_system = len(y0)  # if more then one init condition -> system of ODE's
-
-    # init variables for calc
-    var = np.empty(ode_system, float)
-
-    # Set x and y according to initial condition and assume that h starts
-    # with a value that is as large as possible.
+    ode_system = len(y0)  # if more then one init condition -> system of ODE's is expected
+    kB = np.empty(ode_system, float)
+    # Set x and y according to initial condition and assume that h starts with h_max
     x_cur = a
     y_cur = np.array(y0)
     h = h_max
-
     # Initialize arrays that will be returned
     x = np.array([x_cur])
     y = np.array([y_cur])
     k = [[0] * ode_system for i in range(order)]
+    # get coefficients for calculation
+    A, B, C, CT = get_tableau_rkf45()
 
+    # calculation, until the end point b is reached
     while x_cur < b:
         # Adjust step size when we get to last interval
         if x_cur + h > b:
             h = b - x_cur
-
+        # calculation of coefficients k and their sum with B
         for o in range(0, order):
-            var = np.multiply([*zip(*k)], B[o])
-            mul = sum(np.array([*zip(*var)]))
-
+            kB = np.multiply([*zip(*k)], B[o])
+            sumkB = sum(np.array([*zip(*kB)]))
             if 1 == ode_system:
-                k[o][:] = np.multiply(f(x_cur + h * A[o], np.add(mul, [y_cur])), h)
+                k[o][:] = np.multiply(f(x_cur + h * A[o], np.add(sumkB, [y_cur])), h)
             else:
-                k[o][:] = np.multiply(f(x_cur + h * A[o], np.add(mul, y_cur)), h)
-
-        # Compute the estimate of the local truncation error.
-        # If it's small enough then we accept this step and save the 4th order estimate.
+                k[o][:] = np.multiply(f(x_cur + h * A[o], np.add(sumkB, y_cur)), h)
+        # Calculate the estimate of the local truncation error
         r = max(abs(sum(np.multiply([*zip(*k)], CT).T)) / h)
+        # Null check to avoid division by zero
         if 0 == r:
             e = -1
             break
-
+        # If local truncation error fulfil expected tolerance, 4th estimate of solution and step h are accepted
         if r <= tol:
             x_cur = x_cur + h
             y_cur = np.add(y_cur, sum(np.multiply([*zip(*k[:5])], C).T))
-
             x = np.append(x, x_cur)
             y = np.vstack((y, y_cur))
-
+        # adjust size of the step
         h = h * min(max(0.84 * (tol / r) ** (1 / 4), 0.1), 4.0)
-
+        # check if required constraints are not exceeded
         if h > h_max:
             h = h_max
         elif h < h_min:
+            # Stop algorithm with failure
             # Could not converge to the required tolerance with chose minimum step size
             e = -1
             break
-
     return x, y, e
