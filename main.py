@@ -23,7 +23,6 @@ analytic.index.name = 'x'
 numeric.index.name = 'x'
 rkf45.index.name = 'x'
 first_run = True
-last_n = 10
 
 
 def flip(func):
@@ -267,22 +266,19 @@ with calculations:
 
     analytic = calc_analytical(a, b, f, y0)
 
-    if st.button('Calculate by numerical methods') or n != last_n:
-        last_n = n
-        with st.spinner('Calculation in progress...'):
-            numeric, rkf45, rkf45_status = calc_numerical(f, a, b, y0, n, h, h_min, h_max, tol)
-            update_requested = True
+    if st.button('Calculate by numerical methods'):
+        numeric, rkf45, rkf45_status = calc_numerical(f, a, b, y0, n, h, h_min, h_max, tol)
+        update_requested = True
 
-    with st.spinner('Calculation in progress...'):
-        get_chart(numeric, rkf45, rkf45_status, analytic, update_requested)
+    get_chart(numeric, rkf45, rkf45_status, analytic, update_requested)
 
-        st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
-        if -1 == rkf45_status:
-            st.warning("RKF45 could not converge to the required tolerance with chose minimum step size, please adjust"
-                       " the parameters.")
+    st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
+    if -1 == rkf45_status:
+        st.warning("RKF45 could not converge to the required tolerance with chose minimum step size, please adjust"
+                   " the parameters.")
 
-        with st.beta_expander('Show me the values in the table'):
-            st.write(numeric)
+    with st.beta_expander('Show me the values in the table'):
+        st.write(numeric)
 
 # with about:
 #     st.__version__
