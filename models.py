@@ -143,9 +143,9 @@ def get_math_form_analytic(y0):
     x = sp.symbols('x')
     y = sp.Function('y')
     ode_symbol = sp.Eq(y(x).diff(x, x) + g / l * sp.sin(y(x)))
-    # ode = sp.Eq(y(x).diff(x, x) + mp_g/mp_l * y(x))
+    ode = sp.Eq(y(x).diff(x, x) + mp_g/mp_l * y(x))
     # analytic = sp.dsolve(ode, ics={y(0): y0[0], y(x).diff(x).subs(x, 0): y0[1]})
-    analytic = sp.dsolve(ode_symbol)
+    analytic = sp.dsolve(ode)
     return sp.latex(ode_symbol), sp.latex(analytic)
     # return ('y = C1 \\cos(\\sqrt{\\frac{g}{l}}x) + C2 \\sin(\\sqrt{\\frac{g}{l}}x)')
     # "y'' = -\\frac{g}{l}\\sin(y)"
