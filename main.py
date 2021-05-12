@@ -1,3 +1,4 @@
+import base64
 import numMethods
 import models
 import latex_methods as lm
@@ -6,19 +7,20 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from functools import wraps
-# from scipy.integrate import odeint
+from scipy.integrate import odeint
 # from functools import wraps
 
 
 st.set_page_config(layout="wide")
+pdf = '[Exercises](https://github.com/mkaraf/streamlit-numMethods/blob/4261033118c6848c392ed7cae4c2e86b7829a3b4/populacni_model.pdf)'
 link = '[ODE Math Laboratory](http://calculuslab.deltacollege.edu/ODE/ODE-h.html)'
 
 METHODS = ["NONE", "Euler", "Heun", "Runge-Kutta 2", "Runge-Kutta 3", "Runge-Kutta 4", "Adams-Bashforth 2",
            "Adams-Bashforth 3", "Adams-Bashforth 4", "Adams-Bashforth-Moulton", "Runge-Kutta Fehlberg 45"]
 
 EQUATIONS = models.get_system_str()
-MODELS = [models.model_math_pendulum, models.model_do]
-ANALYTIC = [models.analytic_math_pendulum, models.get_analytical_real]
+MODELS = [models.model_math_pendulum, models.model_do, models.model_population, models.model_so]
+ANALYTIC = [models.analytic_math_pendulum, models.get_analytical_real, models.analytic_population_model]
 
 
 analytic = pd.DataFrame(columns=['Analytical'])
@@ -30,6 +32,7 @@ numeric.index.name = 'x'
 table.index.name = 'x'
 rkf45.index.name = 'x'
 first_run = True
+rkf45_status = 0
 
 
 def flip(func):
@@ -38,6 +41,15 @@ def flip(func):
     def newfunc(*args):
         return func(*args[::-1])
     return newfunc
+
+
+def get_table_download_link_csv(df):
+    csv = df.to_csv(index=False)
+    csv = df.to_csv().encode()
+    #b64 = base64.b64encode(csv.encode()).decode()
+    b64 = base64.b64encode(csv).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="dataframe.csv" target="_blank">Download csv file</a>'
+    return href
 
 
 def get_latex_method(method):
@@ -107,10 +119,10 @@ def get_chart(df, df_rkf45, rkf45_stat, data, requested_update):
         selection
     )
     if requested_update:
-        test = alt.layer(chart, line_chart)
+        combine = alt.layer(chart, line_chart)
     else:
-        test = chart
-    st.altair_chart(test | make_selector)
+        combine = chart
+    st.altair_chart(combine | make_selector)
     return
 
 
@@ -132,7 +144,6 @@ def calc_numerical(model, a_min, b_max, init_con, num_steps, step_size, step_siz
 
     # DATAFRAME
     df_num_sol = pd.DataFrame({
-        # 'Analytical': analytic[:, 0],
         'Euler': euler,
         'Heun': heun,
         'RK2': rk2,
@@ -161,49 +172,73 @@ def calc_numerical(model, a_min, b_max, init_con, num_steps, step_size, step_siz
 
 
 def get_table(num, an):
-    result = pd.concat([an, num], axis=1)
+    df_an = pd.DataFrame({
+        'Analytical': an,
+    },
+        index=num.index
+    )
+    result = pd.concat([df_an, num], axis=1)
     return result
 
 
-def calc_analytical_chart(a_min, b_max, analytic_formula, init_con, step):
-    number_of_steps = round((b_max - a_min) / step) + 1
-    x = np.linspace(a_min, b_max, number_of_steps)
-    # solution = odeint(flip(model), init_con, x)
-    solution = [0] * number_of_steps
-    for i in range(number_of_steps):
-        solution[i] = analytic_formula(x[i], init_con)
-    pd_analytic = pd.DataFrame({'Analytical': solution}, index=x)
-    return pd_analytic
+def calc_analytical_chart(a_min, b_max, init_con, step):
+    # number_of_steps = round((b_max - a_min) / step) + 1
+    x = np.linspace(a_min, b_max, n * 100 + 1)
+    # x = np.linspace(a_min, b_max, number_of_steps * 10)
+    odeintern = odeint(flip(f), init_con, x)[:, 0]
+    odeinter_subset = odeintern[0::100]
+    # solution = [0] * number_of_steps
+    # for i in range(number_of_steps):
+    #     solution[i] = analytic_formula(x[i], init_con)
+    pd_analytic = pd.DataFrame({'Analytical': odeintern}
+                               , index=x)
+    return pd_analytic, odeinter_subset
 
 
-def calc_truncation(vals):
-    last_row = vals.iloc[[-1]]
-    # st.write(last_row)
+def calc_truncation(df_qdeviation):
+    size = len(df_qdeviation)
 
     # DATAFRAME
     df_global_trunc = pd.DataFrame({
-        'Euler': abs(last_row['Analytical'] - last_row['Euler']),
-        'Heun': abs(last_row['Analytical'] - last_row['Heun']),
-        'RK2': abs(last_row['Analytical'] - last_row['RK2']),
-        'RK3': abs(last_row['Analytical'] - last_row['RK3']),
-        'RK4': abs(last_row['Analytical'] - last_row['RK4']),
-        'AB2': abs(last_row['Analytical'] - last_row['AB2']),
-        'AB3': abs(last_row['Analytical'] - last_row['AB3']),
-        'AB4': abs(last_row['Analytical'] - last_row['AB4']),
-        'ABM4_PC': abs(last_row['Analytical'] - last_row['ABM4_PC'])
+        'Euler': (df_qdeviation['Analytical'] - df_qdeviation['Euler']) ** 2,
+        'Heun': (df_qdeviation['Analytical'] - df_qdeviation['Heun']) ** 2,
+        'RK2': (df_qdeviation['Analytical'] - df_qdeviation['RK2']) ** 2,
+        'RK3': (df_qdeviation['Analytical'] - df_qdeviation['RK3']) ** 2,
+        'RK4': (df_qdeviation['Analytical'] - df_qdeviation['RK4']) ** 2,
+        'AB2': (df_qdeviation['Analytical'] - df_qdeviation['AB2']) ** 2,
+        'AB3': (df_qdeviation['Analytical'] - df_qdeviation['AB3']) ** 2,
+        'AB4': (df_qdeviation['Analytical'] - df_qdeviation['AB4']) ** 2,
+        'ABM4_PC': (df_qdeviation['Analytical'] - df_qdeviation['ABM4_PC']) ** 2
     },
-        index=last_row.index
+        index=df_qdeviation.index
     )
+    df_global_trunc = df_global_trunc.sum()
+    max = df_global_trunc.max()
+    df_global_trunc = df_global_trunc / max
     df_global_trunc.index.name = 'x'
-
     bchart_source = df_global_trunc.reset_index().melt('x', var_name='method', value_name='y')
-    bars = alt.Chart(bchart_source, title='Global Truncation').mark_bar().encode(
-        x='y:Q',
-        y=alt.Y('method:N',sort=alt.EncodingSortField(field='y', order='ascending', op='sum'),),
-        color=alt.Color('method', legend=None)
-    ).properties(width=800, height=400)
 
-    st.altair_chart(bars)
+    selection = alt.selection_multi(fields=['x'])
+    color = alt.condition(selection,
+                          alt.Color('x:N', legend=None),
+                          alt.value('lightgray'))
+
+    bars = alt.Chart(bchart_source, title='Sum of the quadratic deviations').mark_bar().encode(
+        x='y:Q',
+        y=alt.Y('x:N', sort=alt.EncodingSortField(field='y', order='ascending')),
+        color=color,
+        tooltip=[alt.Tooltip('x:N'),
+                 alt.Tooltip('y:Q')]
+    ).properties(width=800, height=400).transform_filter(selection)
+
+    make_selector = alt.Chart(bchart_source).mark_rect().encode(
+        y=alt.Y('x:N', axis=alt.Axis(orient='right')),
+        color=color
+    ).add_selection(
+        selection
+    )
+
+    st.altair_chart(bars | make_selector)
     return
 
 
@@ -217,7 +252,6 @@ control_panel = st.beta_container()
 start_point_left, start_point_right = st.beta_columns(2)
 request_analytical, request_numerical = st.beta_columns(2)
 calculations = st.beta_container()
-about = st.beta_container()
 footer = st.beta_container()
 
 
@@ -232,34 +266,56 @@ with sidebar:
     equation = st.sidebar.selectbox("Select equation:", EQUATIONS)
     id_mod = EQUATIONS.index(equation)
     f = MODELS[id_mod]
-    general_solution = ANALYTIC[id_mod]
+    model_str = ""
+    params = ""
 
     if id_mod == 0:
         l = st.sidebar.number_input("l = ", value=1.5, min_value=0.1)
         models.set_var_math_pendulum(l)
-
-    if id_mod == 1:
+        general_solution = ANALYTIC[id_mod]
+    elif id_mod == 1:
         do_m = st.sidebar.number_input("m = ", value=1.0, min_value=0.1, key='kg')
         do_b = st.sidebar.number_input("damping force = ", value=14.0, min_value=0.1, key='N')
         do_l = st.sidebar.number_input("streched spring = ", value=0.2, min_value=0.1, key='m')
-        general_solution, s = models.get_damp_osc_analytic(do_m, do_b, do_l)
-        st.sidebar.write(s)
+        general_solution, info = models.get_damp_osc_analytic(do_m, do_b, do_l)     ## TEST INFO REMOVE IT
+    elif id_mod == 2:
+        pm_m= st.sidebar.number_input("M = ", value=1000.0, min_value=0.1)
+        pm_a = st.sidebar.number_input("a = ", value=2.1)
+        models.set_pop_model_const(pm_a, pm_m)
+        general_solution = ANALYTIC[id_mod]
+    elif id_mod == 3:
+        so_a = st.sidebar.number_input("a = ", value=1.0)
+        so_b = st.sidebar.number_input("b = ", value=1.0)
+        so_c = st.sidebar.number_input("c = ", value=1.0)
+        so_d = st.sidebar.number_input("d = ", value=1.0)
+        models.set_const_so(so_a, so_b, so_c,so_d)
+        # general_solution = ANALYTIC[id_mod]
 
     st.sidebar.markdown("***")
     st.sidebar.markdown("Initial conditions")
-    if id_mod < -1:
-        y0 = [st.sidebar.number_input("y(0) = ", value=1.0)]
-        init_cond = ("y_{(0)}="+str(y0[0]))
-    elif id_mod == 0:
-        y0 = [np.radians(st.sidebar.number_input("C1 = ", value=1.0, help="input in °")),
-              np.radians(st.sidebar.number_input("C2= ", value=1.0, help="input in °/s"))]
-        init_cond = ("C1=" + str(y0[0]) + "\\;radians" + ",\\;C2=" + str(y0[1]) + "\\;radians/s")
-        model = models.get_model_str(id_mod)
+    if id_mod == 0:
+        y0 = [st.sidebar.number_input("C1 = ", value=1.0),
+               st.sidebar.number_input("C2= ", value=1.0)]
+        init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+        params = models.get_const_math_pendulum()
+        model_str, analytic_formula = models.get_math_form_analytic(y0)
     elif id_mod == 1:
         y0 = [st.sidebar.number_input("C1 = ", value=1.0),
               st.sidebar.number_input("C2 = ", value=1.0)]
         init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
-        model = models.get_model_str(id_mod)
+        params = models.get_const_do()
+        model_str, analytic_formula = models.get_do_form_analytic(y0)
+    elif id_mod == 2:
+        y0 = [st.sidebar.number_input("C1 = ", value=1.0)]
+        init_cond = ("C1=" + str(y0[0]))
+        params = models.get_pop_model_const()
+        model_str, analytic_formula = models.get_pop_model_formulas(y0)
+    elif id_mod == 3:
+        y0 = [st.sidebar.number_input("C1 = ", value=1.0),
+              st.sidebar.number_input("C2 = ", value=1.0)]
+        init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+        params = models.get_const_so()
+        model_str, analytic_formula = models.get_formulas_so(y0)
 
     st.sidebar.markdown("***")
     st.sidebar.markdown("RKF45")
@@ -267,25 +323,23 @@ with sidebar:
                                      help="Value is divided by 1000")
     h_min = h_min / 1000
     h_max = h_max / 1000
+    st.sidebar.write('Minimal step = ', h_min)
+    st.sidebar.write('Maximal step = ', h_max)
+
     tol = st.sidebar.slider("Tolerance:", -5, 10, 4, help="Computation method: 1e(-value)")
     tol = 1 * 10 ** (-tol)
-    st.sidebar.write('step_interval = ' + str([h_min, h_max]))
-    st.sidebar.write('tolerance = ', tol)
+    st.sidebar.write('Tolerance = ', tol)
 
 with equations:
     st.subheader("Selected Equations")
     left_ode.write("Selected ordinary differential equation:")
-    left_ode.latex(model)
-    right_analytic.write("Analytic solution of selected ODE:")
-    # right_analytic.latex(sp.latex("y[1] * cos((mp_g / mp_l) ** (1 / 2) * x) + y[0] * sin((mp_g / mp_l) ** (1 / 2) * x)"))
-    right_analytic.latex('y = C1 \\cos(\\sqrt{\\frac{g}{l}}x) + C2 \\sin(\\sqrt{\\frac{g}{l}}x)')
-
+    left_ode.latex(model_str)
+    right_analytic.write("General solution of selected ODE:")
+    right_analytic.latex(analytic_formula)
+    left_ode.write('Initial conditions:')
     left_ode.latex(init_cond)
-    left_ode.latex(models.get_const_math_pendulum())
-
-    # l = right_analytic.number_input("l = ", value=1.5, min_value=0.1)
-    # models.set_var_math_pendulum(l)
-
+    right_analytic.write('Parameters:')
+    right_analytic.latex(params)
 
 a = start_point_left.number_input("Start of the interval:", value=0)
 b = start_point_right.number_input("End of the interval:", value=10)
@@ -300,29 +354,26 @@ with calculations:
             st.write('Step size: ', h)
 
             update_requested = False
-            rkf45_status = -1
 
-            analytic = calc_analytical_chart(a, b, general_solution, y0, 0.01)
+            analytic, odeinter_subset = calc_analytical_chart(a, b, y0, 0.01)
 
             if st.button('Calculate by numerical methods'):
                 numeric, rkf45, rkf45_status = calc_numerical(f, a, b, y0, n, h, h_min, h_max, tol)
                 update_requested = True
-
             get_chart(numeric, rkf45, rkf45_status, analytic, update_requested)
 
             st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
             if -1 == rkf45_status:
-                st.warning("RKF45 could not converge to the required tolerance with chose minimum step size, please adjust"
-                           " the parameters.")
-
-            table = get_table(numeric, calc_analytical_chart(a, b, general_solution, y0, h))
+                st.warning("RKF45 could not converge to the required tolerance with chose minimum step size,"
+                           " please adjust the parameters.")
 
             if update_requested:
                 st.markdown("***")
+                table = get_table(numeric, odeinter_subset)
                 st.write(table)
+                st.markdown(get_table_download_link_csv(table), unsafe_allow_html=True)
                 st.subheader("Global Truncation")
                 calc_truncation(table)
-
 
 with footer:
     st.markdown('***')
