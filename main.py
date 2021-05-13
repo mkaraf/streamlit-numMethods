@@ -10,29 +10,29 @@ from functools import wraps
 from scipy.integrate import odeint
 # from functools import wraps
 
+st.set_page_config(
+    page_title="Numeric Methods",
+    initial_sidebar_state="auto",
+    layout='wide'
+)
 
-st.set_page_config(layout="wide")
-pdf = '[Description of ODE](https://github.com/mkaraf/streamlit-numMethods/blob/4261033118c6848c392ed7cae4c2e86b7829a3b4/populacni_model.pdf)'
+pdf = '[Explanation of exercises](https://github.com/mkaraf/streamlit-numMethods/blob/4261033118c6848c392ed7cae4c2e86b7829a3b4/populacni_model.pdf)'
 link = '[ODE Math Laboratory](http://calculuslab.deltacollege.edu/ODE/ODE-h.html)'
 
 METHODS = ["NONE", "Euler", "Heun", "Runge-Kutta 2", "Runge-Kutta 3", "Runge-Kutta 4", "Adams-Bashforth 2",
            "Adams-Bashforth 3", "Adams-Bashforth 4", "Adams-Bashforth-Moulton", "Runge-Kutta Fehlberg 45"]
 
 EQUATIONS = models.get_system_str()
-MODELS = [models.model_math_pendulum, models.model_do, models.model_population, models.model_so]
-ANALYTIC = [models.analytic_math_pendulum, models.get_analytical_real, models.analytic_population_model]
-
 
 analytic = pd.DataFrame(columns=['Analytical'])
 table = pd.DataFrame(columns=['Analytical','Euler', 'Heun', 'RK2', 'RK3', 'RK4', 'AB2', 'AB3', 'AB4', 'ABM4_PC'])
-numeric = pd.DataFrame(columns=['Euler', 'Heun', 'RK2', 'RK3', 'RK4', 'AB2', 'AB3', 'AB4', 'ABM4_PC'])
+numeric_df = pd.DataFrame(columns=['Euler', 'Heun', 'RK2', 'RK3', 'RK4', 'AB2', 'AB3', 'AB4', 'ABM4_PC'])
 rkf45 = pd.DataFrame(columns=['RKF45'])
 analytic.index.name = 'x'
-numeric.index.name = 'x'
+numeric_df.index.name = 'x'
 table.index.name = 'x'
 rkf45.index.name = 'x'
-first_run = True
-rkf45_status = 0
+
 
 
 def flip(func):
@@ -44,7 +44,7 @@ def flip(func):
 
 
 def get_table_download_link_csv(df):
-    csv = df.to_csv(index=False)
+    # csv = df.to_csv(index=False)
     csv = df.to_csv().encode()
     #b64 = base64.b64encode(csv.encode()).decode()
     b64 = base64.b64encode(csv).decode()
@@ -126,49 +126,54 @@ def get_chart(df, df_rkf45, rkf45_stat, data, requested_update):
     return
 
 
-def calc_numerical(model, a_min, b_max, init_con, num_steps, step_size, step_size_min, step_size_max, tolerance):
-    x = np.linspace(a_min, b_max, num_steps + 1)
+def calc_numerical(requested):
+    if requested:
+        x = np.linspace(a, b, n + 1)
 
-    euler = np.array(numMethods.euler(model, init_con, x, step_size))[:, 0]
-    heun = np.array(numMethods.heun(model, init_con, x, step_size))[:, 0]
-    rk2 = np.array(numMethods.rkx(model, init_con, x, step_size, 2))[:, 0]
-    rk3 = np.array(numMethods.rkx(model, init_con, x, step_size, 3))[:, 0]
-    rk4 = np.array(numMethods.rkx(model, init_con, x, step_size, 4))[:, 0]
-    ab2 = np.array(numMethods.abx(model, init_con, x, step_size, 2))[:, 0]
-    ab3 = np.array(numMethods.abx(model, init_con, x, step_size, 3))[:, 0]
-    ab4 = np.array(numMethods.abx(model, init_con, x, step_size, 4))[:, 0]
-    abm4_pc = np.array(numMethods.abm4_pc(model, init_con, x, step_size))[:, 0]
-    rkf_x, rkf_y, rkf45_stat = np.array(numMethods.rkf45(model, init_con, a, b, tolerance,
-                                                         step_size_max, step_size_min))
-    rkf_y = np.array(rkf_y)[:, 0]
+        euler = np.array(numMethods.euler(numeric_f, y0, x, h))[:, 0]
+        heun = np.array(numMethods.heun(numeric_f, y0, x, h))[:, 0]
+        rk2 = np.array(numMethods.rkx(numeric_f, y0, x, h, 2))[:, 0]
+        rk3 = np.array(numMethods.rkx(numeric_f, y0, x, h, 3))[:, 0]
+        rk4 = np.array(numMethods.rkx(numeric_f, y0, x, h, 4))[:, 0]
+        ab2 = np.array(numMethods.abx(numeric_f, y0, x, h, 2))[:, 0]
+        ab3 = np.array(numMethods.abx(numeric_f, y0, x, h, 3))[:, 0]
+        ab4 = np.array(numMethods.abx(numeric_f, y0, x, h, 4))[:, 0]
+        abm4_pc = np.array(numMethods.abm4_pc(numeric_f, y0, x, h))[:, 0]
+        rkf_x, rkf_y, rkf45_stat = np.array(numMethods.rkf45(numeric_f, y0, a, b, tol,
+                                                             h_max, h_min))
+        rkf_y = np.array(rkf_y)[:, 0]
 
-    # DATAFRAME
-    df_num_sol = pd.DataFrame({
-        'Euler': euler,
-        'Heun': heun,
-        'RK2': rk2,
-        'RK3': rk3,
-        'RK4': rk4,
-        'AB2': ab2,
-        'AB3': ab3,
-        'AB4': ab4,
-        'ABM4_PC': abm4_pc
-    },
-        index=x
-    )
-    df_num_sol.index.name = 'x'
-
-    if 0 == rkf45_status:
-        df_rkf45 = pd.DataFrame({
-            'RKF45': rkf_y
+        # DATAFRAME
+        df_num_sol = pd.DataFrame({
+            'Euler': euler,
+            'Heun': heun,
+            'RK2': rk2,
+            'RK3': rk3,
+            'RK4': rk4,
+            'AB2': ab2,
+            'AB3': ab3,
+            'AB4': ab4,
+            'ABM4_PC': abm4_pc
         },
-            index=rkf_x
+            index=x
         )
-        df_rkf45.index.name = 'x'
-    else:
-        df_rkf45 = 0
+        df_num_sol.index.name = 'x'
 
-    return df_num_sol, df_rkf45, rkf45_status
+        if 0 == rkf45_stat:
+            df_rkf45 = pd.DataFrame({
+                'RKF45': rkf_y
+            },
+                index=rkf_x
+            )
+            df_rkf45.index.name = 'x'
+        else:
+            df_rkf45 = 0
+    else:
+        df_num_sol = numeric_df
+        df_rkf45 = 0
+        rkf45_stat = -2
+
+    return df_num_sol, df_rkf45, rkf45_stat
 
 
 def get_table(num, an):
@@ -181,18 +186,19 @@ def get_table(num, an):
     return result
 
 
-def calc_analytical_chart(a_min, b_max, init_con, step):
+def calc_analytical_chart():
+    # steps = (b - a) / 0.0001
     # number_of_steps = round((b_max - a_min) / step) + 1
-    x = np.linspace(a_min, b_max, n * 100 + 1)
+    x = np.linspace(a, b, n * 100 + 1)
     # x = np.linspace(a_min, b_max, number_of_steps * 10)
-    odeintern = odeint(flip(f), init_con, x)[:, 0]
-    odeinter_subset = odeintern[0::100]
+    result_all = odeint(flip(numeric_f), y0, x)[:, 0]
+    result_subset = result_all[0::100]
     # solution = [0] * number_of_steps
     # for i in range(number_of_steps):
     #     solution[i] = analytic_formula(x[i], init_con)
-    pd_analytic = pd.DataFrame({'Analytical': odeintern}
+    pd_result_all = pd.DataFrame({'Analytical': result_all}
                                , index=x)
-    return pd_analytic, odeinter_subset
+    return pd_result_all, result_subset
 
 
 def calc_truncation(df_qdeviation):
@@ -216,6 +222,7 @@ def calc_truncation(df_qdeviation):
     max = df_global_trunc.max()
     df_global_trunc = df_global_trunc / max
     df_global_trunc.index.name = 'x'
+
     bchart_source = df_global_trunc.reset_index().melt('x', var_name='method', value_name='y')
 
     selection = alt.selection_multi(fields=['x'])
@@ -238,21 +245,100 @@ def calc_truncation(df_qdeviation):
         selection
     )
 
-    st.altair_chart(bars | make_selector)
+    interval = alt.selection_interval(encodings=['x'])
+
+    base = alt.Chart(bchart_source).mark_bar().encode(
+        x='y:Q',
+        y='x:N',
+        color='x:N',
+    )
+
+    chart = base.encode(
+        x=alt.X('y:Q', scale=alt.Scale(domain=interval.ref())),
+    ).properties(
+        width=800,
+        height=300
+    )
+
+    view = base.add_selection(
+        interval
+    ).properties(
+        width=800,
+        height=100,
+    )
+
+    st.altair_chart(chart & view)
+
+    #st.altair_chart(bars | make_selector)
     return
+
+
+# PENDULUM
+def set_inputs_pendulum():
+    models.set_params_pendulum(mp_l)
+
+    # f_analytic = models.
+    f_numeric = models.model_pendulum
+
+    str_init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+    str_params = models.get_params_pendulum()
+    str_ode, str_general = models.get_formulas_pendulum()
+
+    return f_numeric, str_init_cond, str_params, str_ode, str_general
+
+
+# DAMPED PENDULUM
+def set_inputs_model_oscillations():
+    models.set_params_damped_oscillations(do_m, do_b, do_l)
+
+    # f_analytic =
+    f_numeric = models.model_damped_oscillations
+
+    str_init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+    str_params = models.get_params_damped_oscillations()
+    str_ode, str_general = models.get_formulas_damped_oscillations(y0)
+
+    return f_numeric, str_init_cond, str_params, str_ode, str_general
+
+
+# POPULATION MODEL
+def set_inputs_model_population():
+    models.set_params_population(pm_a, pm_m)
+
+    # f_analytic =
+    f_numeric = models.model_population
+
+    str_init_cond = ("C1=" + str(y0[0]))
+    str_params = models.get_params_population()
+    str_ode, str_general = models.get_formulas_population(y0)
+
+    return f_numeric, str_init_cond, str_params, str_ode, str_general
+
+
+# GENERAL SECOND ORDER
+def set_inputs_second_order():
+    models.set_params_second_order(so_a, so_b, so_c, so_d)
+
+    # f_analytic =
+    f_numeric = models.model_second_order
+
+    str_init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+    str_params = models.get_params_second_order()
+    str_ode, str_general = models.get_formulas_second_order(y0)
+
+    return f_numeric, str_init_cond, str_params, str_ode, str_general
 
 
 header = st.beta_container()
 sidebar = st.beta_container()
-equations = st.beta_container()
-left_ode, right_analytic = st.beta_columns(2)
-init_conditions = st.beta_container()
+spinner = st.spinner('Calculation in progress...')
+equations_cont = st.beta_container()
+equations_left_cont, equations_right_cont = st.beta_columns(2)
 
-control_panel = st.beta_container()
-start_point_left, start_point_right = st.beta_columns(2)
-request_analytical, request_numerical = st.beta_columns(2)
-calculations = st.beta_container()
-footer = st.beta_container()
+# interval_cont = st.beta_container()
+# request_analytical, request_numerical = st.beta_columns(2)
+results_cont = st.spinner('Calculation in progress...')
+footer_cont = st.beta_container()
 
 
 with header:
@@ -263,121 +349,104 @@ with header:
 
 with sidebar:
     st.sidebar.header("User Input Parameters")
-    equation = st.sidebar.selectbox("Select equation:", EQUATIONS)
-    id_mod = EQUATIONS.index(equation)
-    f = MODELS[id_mod]
-    model_str = ""
-    params = ""
+    st.sidebar.markdown(pdf, unsafe_allow_html=True)
+    equation_select = st.sidebar.selectbox("Select equation:", EQUATIONS)
 
-    if id_mod == 0:
-        l = st.sidebar.number_input("l = ", value=1.5, min_value=0.1)
-        models.set_var_math_pendulum(l)
-        general_solution = ANALYTIC[id_mod]
-    elif id_mod == 1:
-        do_m = st.sidebar.number_input("m = ", value=1.0, min_value=0.1, key='kg')
+    st.sidebar.markdown("Parameters:")
+
+    if equation_select == "Mathematical pendulum":
+        mp_l = st.sidebar.number_input("l = ", value=1.5, min_value=0.1)
+        st.sidebar.markdown("Initial conditions:")
+        y0 = [st.sidebar.number_input("C1 = ", value=1.0),
+              st.sidebar.number_input("C2= ", value=1.0)]
+        numeric_f, init_cond, params, ode_str, general_str = set_inputs_pendulum()
+
+    elif equation_select == "Damped oscillations":
+        do_m = st.sidebar.number_input("mass = ", value=1.0, min_value=0.1, key='kg')
         do_b = st.sidebar.number_input("damping force = ", value=14.0, min_value=0.1, key='N')
-        do_l = st.sidebar.number_input("streched spring = ", value=0.2, min_value=0.1, key='m')
-        general_solution, info = models.get_damp_osc_analytic(do_m, do_b, do_l)     ## TEST INFO REMOVE IT
-    elif id_mod == 2:
-        pm_m= st.sidebar.number_input("M = ", value=1000.0, min_value=0.1)
+        do_l = st.sidebar.number_input("stretched spring = ", value=0.2, min_value=0.1, key='m')
+        st.sidebar.markdown("Initial conditions:")
+        y0 = [np.radians(st.sidebar.number_input("C1 = ", value=1.0)),
+              st.sidebar.number_input("C2 = ", value=1.0)]
+        numeric_f, init_cond, params, ode_str, general_str = set_inputs_model_oscillations()
+
+    elif equation_select == "Population model":
+        pm_m = st.sidebar.number_input("M = ", value=1000.0, min_value=0.1)
         pm_a = st.sidebar.number_input("a = ", value=2.1)
-        models.set_pop_model_const(pm_a, pm_m)
-        general_solution = ANALYTIC[id_mod]
-    elif id_mod == 3:
+        st.sidebar.markdown("Initial conditions:")
+        y0 = [st.sidebar.number_input("C1 = ", value=1.0)]
+        numeric_f, init_cond, params, ode_str, general_str = set_inputs_model_population()
+
+    elif equation_select == "ay''(x) * by'(x) + cy(x) = d":
         so_a = st.sidebar.number_input("a = ", value=1.0)
         so_b = st.sidebar.number_input("b = ", value=1.0)
         so_c = st.sidebar.number_input("c = ", value=1.0)
         so_d = st.sidebar.number_input("d = ", value=1.0)
-        models.set_const_so(so_a, so_b, so_c,so_d)
-        # general_solution = ANALYTIC[id_mod]
-
-    st.sidebar.markdown("***")
-    st.sidebar.markdown("Initial conditions")
-    if id_mod == 0:
-        y0 = [st.sidebar.number_input("C1 = ", value=1.0),
-               st.sidebar.number_input("C2= ", value=1.0)]
-        init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
-        params = models.get_const_math_pendulum()
-        model_str, analytic_formula = models.get_math_form_analytic(y0)
-    elif id_mod == 1:
+        st.sidebar.markdown("Initial conditions:")
         y0 = [st.sidebar.number_input("C1 = ", value=1.0),
               st.sidebar.number_input("C2 = ", value=1.0)]
-        init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
-        params = models.get_const_do()
-        model_str, analytic_formula = models.get_do_form_analytic(y0)
-    elif id_mod == 2:
-        y0 = [st.sidebar.number_input("C1 = ", value=1.0)]
-        init_cond = ("C1=" + str(y0[0]))
-        params = models.get_pop_model_const()
-        model_str, analytic_formula = models.get_pop_model_formulas(y0)
-    elif id_mod == 3:
-        y0 = [st.sidebar.number_input("C1 = ", value=1.0),
-              st.sidebar.number_input("C2 = ", value=1.0)]
-        init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
-        params = models.get_const_so()
-        model_str, analytic_formula = models.get_formulas_so(y0)
+        numeric_f, init_cond, params, ode_str, general_str = set_inputs_second_order()
 
     st.sidebar.markdown("***")
     st.sidebar.markdown("RKF45")
     h_min, h_max = st.sidebar.slider("Size of the step:", 0.1, 1000.0, (100.0, 700.0), 0.1,
                                      help="Value is divided by 1000")
+    tol = st.sidebar.slider("Tolerance:", -5, 10, 3,
+                            help="Higher value means higher precision,"
+                                 "Computation method: 1e(-value)")
     h_min = h_min / 1000
     h_max = h_max / 1000
+    tol = 1 * 10 ** (-tol)
     st.sidebar.write('Minimal step = ', h_min)
     st.sidebar.write('Maximal step = ', h_max)
-
-    tol = st.sidebar.slider("Tolerance:", -5, 10, 4, help="Computation method: 1e(-value)")
-    tol = 1 * 10 ** (-tol)
     st.sidebar.write('Tolerance = ', tol)
 
-with equations:
+with equations_cont:
     st.subheader("Selected Equations")
-    left_ode.write("Selected ordinary differential equation:")
-    left_ode.latex(model_str)
-    right_analytic.write("General solution of selected ODE:")
-    right_analytic.latex(analytic_formula)
-    left_ode.write('Initial conditions:')
-    left_ode.latex(init_cond)
-    right_analytic.write('Parameters:')
-    right_analytic.latex(params)
+    equations_left_cont.write("Selected ordinary differential equation:")
+    equations_left_cont.latex(ode_str)
+    equations_right_cont.write("General solution of selected ODE:")
+    equations_right_cont.latex(general_str)
+    equations_left_cont.write('Initial conditions:')
+    equations_left_cont.latex(init_cond)
+    equations_right_cont.write('Parameters:')
+    equations_right_cont.latex(params)
+    a = equations_left_cont.number_input("Start of the interval:", value=0)
+    b = equations_right_cont.number_input("End of the interval:", value=10)
 
-a = start_point_left.number_input("Start of the interval:", value=0)
-b = start_point_right.number_input("End of the interval:", value=10)
+with results_cont:
+    # if b <= a:
+    #     st.error('End of the interval has to be higher than start')
+    # else:
+    n = st.slider("Number of steps:", 5, 100, 30)
+    h = (b - a) / n
+    st.write('Step size: ', h)
 
-with calculations:
-    with st.spinner('Calculation in progress...'):
-        if b <= a:
-            st.error('End of the interval has to be higher than start')
-        else:
-            n = st.slider("Number of steps:", 5, 100, 30)
-            h = (b - a) / n
-            st.write('Step size: ', h)
+    update_requested = False
 
-            update_requested = False
+    analytic_ch, analytic_t = calc_analytical_chart()
 
-            analytic, odeinter_subset = calc_analytical_chart(a, b, y0, 0.01)
+    if st.button('Calculate by numerical methods'):
+        update_requested = True
 
-            if st.button('Calculate by numerical methods'):
-                numeric, rkf45, rkf45_status = calc_numerical(f, a, b, y0, n, h, h_min, h_max, tol)
-                update_requested = True
-            get_chart(numeric, rkf45, rkf45_status, analytic, update_requested)
+    numeric_df, rkf45, rkf45_status = calc_numerical(update_requested)
+    if -1 == rkf45_status:
+        st.warning("RKF45 could not converge to the required tolerance with chose minimum step size,"
+                   " please adjust the parameters.")
 
-            st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
-            if -1 == rkf45_status:
-                st.warning("RKF45 could not converge to the required tolerance with chose minimum step size,"
-                           " please adjust the parameters.")
+    st.subheader("Results")
+    get_chart(numeric_df, rkf45, rkf45_status, analytic_ch, update_requested)
+    st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
 
-            if update_requested:
-                st.markdown("***")
-                table = get_table(numeric, odeinter_subset)
-                st.write(table)
-                st.markdown(get_table_download_link_csv(table), unsafe_allow_html=True)
-                st.subheader("Global Truncation")
-                calc_truncation(table)
+    if update_requested:
+        st.markdown("***")
+        table = get_table(numeric_df, analytic_t)
+        st.write(table)
+        st.markdown(get_table_download_link_csv(table), unsafe_allow_html=True)
+        st.subheader("Comparison of results")
+        calc_truncation(table)
 
-with footer:
     st.markdown('***')
     st.subheader("Useful links:")
     st.markdown(link, unsafe_allow_html=True)
-    st.markdown(pdf, unsafe_allow_html=True)
     st.write("Streamlit version: " + st.__version__)
