@@ -186,6 +186,7 @@ def get_table(num, an):
     return result
 
 
+@st.cache
 def calc_analytical_chart():
     # steps = (b - a) / 0.0001
     # number_of_steps = round((b_max - a_min) / step) + 1
@@ -196,8 +197,8 @@ def calc_analytical_chart():
     # solution = [0] * number_of_steps
     # for i in range(number_of_steps):
     #     solution[i] = analytic_formula(x[i], init_con)
-    pd_result_all = pd.DataFrame({'Analytical': result_all}
-                               , index=x)
+    pd_result_all = pd.DataFrame({'Analytical': result_all},
+                                 index=x)
     return pd_result_all, result_subset
 
 
@@ -329,6 +330,21 @@ def set_inputs_second_order():
     return f_numeric, str_init_cond, str_params, str_ode, str_general
 
 
+def show_equations_cont():
+    st.subheader("Selected Equations")
+    equations_left_cont.write("Selected ordinary differential equation:")
+    equations_left_cont.latex(ode_str)
+    equations_right_cont.write("General solution of selected ODE:")
+    equations_right_cont.latex(general_str)
+    equations_left_cont.write('Initial conditions:')
+    equations_left_cont.latex(init_cond)
+    equations_right_cont.write('Parameters:')
+    equations_right_cont.latex(params)
+    a = equations_left_cont.number_input("Start of the interval:", value=0)
+    b = equations_right_cont.number_input("End of the interval:", value=10)
+    return
+
+
 header = st.beta_container()
 sidebar = st.beta_container()
 spinner = st.spinner('Calculation in progress...')
@@ -402,51 +418,65 @@ with sidebar:
     st.sidebar.write('Tolerance = ', tol)
 
 with equations_cont:
-    st.subheader("Selected Equations")
-    equations_left_cont.write("Selected ordinary differential equation:")
-    equations_left_cont.latex(ode_str)
-    equations_right_cont.write("General solution of selected ODE:")
-    equations_right_cont.latex(general_str)
-    equations_left_cont.write('Initial conditions:')
-    equations_left_cont.latex(init_cond)
-    equations_right_cont.write('Parameters:')
-    equations_right_cont.latex(params)
-    a = equations_left_cont.number_input("Start of the interval:", value=0)
-    b = equations_right_cont.number_input("End of the interval:", value=10)
+    with st.spinner('Calculation in progress...'):
+        st.subheader("Selected Equations")
+        equations_left_cont.write("Selected ordinary differential equation:")
+        equations_left_cont.latex(ode_str)
+        equations_right_cont.write("General solution of selected ODE:")
+        equations_right_cont.latex(general_str)
+        equations_left_cont.write('Initial conditions:')
+        equations_left_cont.latex(init_cond)
+        equations_right_cont.write('Parameters:')
+        equations_right_cont.latex(params)
+        a = equations_left_cont.number_input("Start of the interval:", value=0)
+        b = equations_right_cont.number_input("End of the interval:", value=10)
+
+    # st.subheader("Selected Equations")
+    # equations_left_cont.write("Selected ordinary differential equation:")
+    # equations_left_cont.latex(ode_str)
+    # equations_right_cont.write("General solution of selected ODE:")
+    # equations_right_cont.latex(general_str)
+    # equations_left_cont.write('Initial conditions:')
+    # equations_left_cont.latex(init_cond)
+    # equations_right_cont.write('Parameters:')
+    # equations_right_cont.latex(params)
+    # a = equations_left_cont.number_input("Start of the interval:", value=0)
+    # b = equations_right_cont.number_input("End of the interval:", value=10)
 
 with results_cont:
-    # if b <= a:
-    #     st.error('End of the interval has to be higher than start')
-    # else:
-    n = st.slider("Number of steps:", 5, 100, 30)
-    h = (b - a) / n
-    st.write('Step size: ', h)
+    with st.spinner('Calculation in progress...'):
+        # if b <= a:
+        #     st.error('End of the interval has to be higher than start')
+        # else:
+        n = st.slider("Number of steps:", 5, 100, 30)
+        h = (b - a) / n
+        st.write('Step size: ', h)
 
-    update_requested = False
+        update_requested = False
 
-    analytic_ch, analytic_t = calc_analytical_chart()
+        analytic_ch, analytic_t = calc_analytical_chart()
 
-    if st.button('Calculate by numerical methods'):
-        update_requested = True
+        if st.button('Calculate by numerical methods'):
+            update_requested = True
 
-    numeric_df, rkf45, rkf45_status = calc_numerical(update_requested)
-    if -1 == rkf45_status:
-        st.warning("RKF45 could not converge to the required tolerance with chose minimum step size,"
-                   " please adjust the parameters.")
+        numeric_df, rkf45, rkf45_status = calc_numerical(update_requested)
+        if -1 == rkf45_status:
+            st.warning("RKF45 could not converge to the required tolerance with chose minimum step size,"
+                       " please adjust the parameters.")
 
-    st.subheader("Results")
-    get_chart(numeric_df, rkf45, rkf45_status, analytic_ch, update_requested)
-    st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
+        st.subheader("Results")
+        get_chart(numeric_df, rkf45, rkf45_status, analytic_ch, update_requested)
+        st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
 
-    if update_requested:
-        st.markdown("***")
-        table = get_table(numeric_df, analytic_t)
-        st.write(table)
-        st.markdown(get_table_download_link_csv(table), unsafe_allow_html=True)
-        st.subheader("Comparison of results")
-        calc_truncation(table)
+        if update_requested:
+            st.markdown("***")
+            table = get_table(numeric_df, analytic_t)
+            st.write(table)
+            st.markdown(get_table_download_link_csv(table), unsafe_allow_html=True)
+            st.subheader("Comparison of results")
+            calc_truncation(table)
 
-    st.markdown('***')
-    st.subheader("Useful links:")
-    st.markdown(link, unsafe_allow_html=True)
-    st.write("Streamlit version: " + st.__version__)
+        st.markdown('***')
+        st.subheader("Useful links:")
+        st.markdown(link, unsafe_allow_html=True)
+        st.write("Streamlit version: " + st.__version__)
