@@ -8,7 +8,6 @@ import pandas as pd
 import altair as alt
 from functools import wraps
 from scipy.integrate import odeint
-# from functools import wraps
 
 st.set_page_config(
     page_title="Numeric Methods",
@@ -139,8 +138,7 @@ def calc_numerical(requested):
         ab3 = np.array(numMethods.abx(numeric_f, y0, x, h, 3))[:, 0]
         ab4 = np.array(numMethods.abx(numeric_f, y0, x, h, 4))[:, 0]
         abm4_pc = np.array(numMethods.abm4_pc(numeric_f, y0, x, h))[:, 0]
-        rkf_x, rkf_y, rkf45_stat = np.array(numMethods.rkf45(numeric_f, y0, a, b, tol,
-                                                             h_max, h_min))
+        rkf_x, rkf_y, rkf45_stat = numMethods.rkf45(numeric_f, y0, a, b, tol, h_max, h_min)
         rkf_y = np.array(rkf_y)[:, 0]
 
         # DATAFRAME
@@ -186,38 +184,29 @@ def get_table(num, an):
     return result
 
 
-@st.cache
 def calc_analytical_chart():
-    # steps = (b - a) / 0.0001
-    # number_of_steps = round((b_max - a_min) / step) + 1
     x = np.linspace(a, b, n * 100 + 1)
-    # x = np.linspace(a_min, b_max, number_of_steps * 10)
     result_all = odeint(flip(numeric_f), y0, x)[:, 0]
     result_subset = result_all[0::100]
-    # solution = [0] * number_of_steps
-    # for i in range(number_of_steps):
-    #     solution[i] = analytic_formula(x[i], init_con)
     pd_result_all = pd.DataFrame({'Analytical': result_all},
                                  index=x)
     return pd_result_all, result_subset
 
 
-def calc_truncation(df_qdeviation):
-    size = len(df_qdeviation)
-
+def do_comparison(df_comparison):
     # DATAFRAME
     df_global_trunc = pd.DataFrame({
-        'Euler': (df_qdeviation['Analytical'] - df_qdeviation['Euler']) ** 2,
-        'Heun': (df_qdeviation['Analytical'] - df_qdeviation['Heun']) ** 2,
-        'RK2': (df_qdeviation['Analytical'] - df_qdeviation['RK2']) ** 2,
-        'RK3': (df_qdeviation['Analytical'] - df_qdeviation['RK3']) ** 2,
-        'RK4': (df_qdeviation['Analytical'] - df_qdeviation['RK4']) ** 2,
-        'AB2': (df_qdeviation['Analytical'] - df_qdeviation['AB2']) ** 2,
-        'AB3': (df_qdeviation['Analytical'] - df_qdeviation['AB3']) ** 2,
-        'AB4': (df_qdeviation['Analytical'] - df_qdeviation['AB4']) ** 2,
-        'ABM4_PC': (df_qdeviation['Analytical'] - df_qdeviation['ABM4_PC']) ** 2
+        'Euler': (df_comparison['Analytical'] - df_comparison['Euler']) ** 2,
+        'Heun': (df_comparison['Analytical'] - df_comparison['Heun']) ** 2,
+        'RK2': (df_comparison['Analytical'] - df_comparison['RK2']) ** 2,
+        'RK3': (df_comparison['Analytical'] - df_comparison['RK3']) ** 2,
+        'RK4': (df_comparison['Analytical'] - df_comparison['RK4']) ** 2,
+        'AB2': (df_comparison['Analytical'] - df_comparison['AB2']) ** 2,
+        'AB3': (df_comparison['Analytical'] - df_comparison['AB3']) ** 2,
+        'AB4': (df_comparison['Analytical'] - df_comparison['AB4']) ** 2,
+        'ABM4_PC': (df_comparison['Analytical'] - df_comparison['ABM4_PC']) ** 2
     },
-        index=df_qdeviation.index
+        index=df_comparison.index
     )
     df_global_trunc = df_global_trunc.sum()
     max = df_global_trunc.max()
@@ -246,31 +235,7 @@ def calc_truncation(df_qdeviation):
         selection
     )
 
-    interval = alt.selection_interval(encodings=['x'])
-
-    base = alt.Chart(bchart_source).mark_bar().encode(
-        x='y:Q',
-        y='x:N',
-        color='x:N',
-    )
-
-    chart = base.encode(
-        x=alt.X('y:Q', scale=alt.Scale(domain=interval.ref())),
-    ).properties(
-        width=800,
-        height=300
-    )
-
-    view = base.add_selection(
-        interval
-    ).properties(
-        width=800,
-        height=100,
-    )
-
-    st.altair_chart(chart & view)
-
-    #st.altair_chart(bars | make_selector)
+    st.altair_chart(bars | make_selector)
     return
 
 
@@ -281,7 +246,7 @@ def set_inputs_pendulum():
     # f_analytic = models.
     f_numeric = models.model_pendulum
 
-    str_init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+    str_init_cond = ("y(0) =" + str(y0[0]) + ",\\;y'(0)=" + str(y0[1]))
     str_params = models.get_params_pendulum()
     str_ode, str_general = models.get_formulas_pendulum()
 
@@ -292,10 +257,9 @@ def set_inputs_pendulum():
 def set_inputs_model_oscillations():
     models.set_params_damped_oscillations(do_m, do_b, do_l)
 
-    # f_analytic =
     f_numeric = models.model_damped_oscillations
 
-    str_init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+    str_init_cond = ("y(0) =" + str(y0[0]) + ",\\;y'(0)=" + str(y0[1]))
     str_params = models.get_params_damped_oscillations()
     str_ode, str_general = models.get_formulas_damped_oscillations(y0)
 
@@ -306,10 +270,9 @@ def set_inputs_model_oscillations():
 def set_inputs_model_population():
     models.set_params_population(pm_a, pm_m)
 
-    # f_analytic =
     f_numeric = models.model_population
 
-    str_init_cond = ("C1=" + str(y0[0]))
+    str_init_cond = ("y(0)=" + str(y0[0]))
     str_params = models.get_params_population()
     str_ode, str_general = models.get_formulas_population(y0)
 
@@ -320,39 +283,53 @@ def set_inputs_model_population():
 def set_inputs_second_order():
     models.set_params_second_order(so_a, so_b, so_c, so_d)
 
-    # f_analytic =
     f_numeric = models.model_second_order
 
-    str_init_cond = ("C1=" + str(y0[0]) + ",\\;C2=" + str(y0[1]))
+    str_init_cond = ("y(0) =" + str(y0[0]) + ",\\;y'(0)=" + str(y0[1]))
     str_params = models.get_params_second_order()
     str_ode, str_general = models.get_formulas_second_order(y0)
 
     return f_numeric, str_init_cond, str_params, str_ode, str_general
 
 
-def show_equations_cont():
-    st.subheader("Selected Equations")
-    equations_left_cont.write("Selected ordinary differential equation:")
-    equations_left_cont.latex(ode_str)
-    equations_right_cont.write("General solution of selected ODE:")
-    equations_right_cont.latex(general_str)
-    equations_left_cont.write('Initial conditions:')
-    equations_left_cont.latex(init_cond)
-    equations_right_cont.write('Parameters:')
-    equations_right_cont.latex(params)
-    a = equations_left_cont.number_input("Start of the interval:", value=0)
-    b = equations_right_cont.number_input("End of the interval:", value=10)
-    return
+def set_inputs_third_order():
+    models.set_params_third_order(o3_a, o3_b, o3_c, o3_d, o3_e)
+
+    f_numeric = models.model_third_order
+
+    str_init_cond = ("y(0) =" + str(y0[0]) + ",\\;y'(0)=" + str(y0[1])+ ",\\;y''(0)=" + str(y0[2]))
+    str_params = models.get_params_third_order()
+    str_ode, str_general = models.get_formulas_third_order(y0)
+
+    return f_numeric, str_init_cond, str_params, str_ode, str_general
+
+
+def set_inputs_skydiver():
+    models.set_params_skydiver(sk_m)
+
+    f_numeric = models.model_skydiver
+
+    str_init_cond = ("y(0) =" + str(y0[0]) + ",\\;y'(0)=" + str(y0[1]))
+    str_params = models.get_params_skydiver()
+    str_ode, str_general = models.get_formulas_skydiver(y0)
+    return f_numeric, str_init_cond, str_params, str_ode, str_general
+
+
+def set_inputs_manometer():
+    models.set_params_manometer(mn_l)
+
+    f_numeric = models.model_manometer
+
+    str_init_cond = ("y(0) =" + str(y0[0]) + ",\\;y'(0)=" + str(y0[1]))
+    str_params = models.get_params_manometer()
+    str_ode, str_general = models.get_formulas_manometer(y0)
+    return f_numeric, str_init_cond, str_params, str_ode, str_general
 
 
 header = st.beta_container()
 sidebar = st.beta_container()
-spinner = st.spinner('Calculation in progress...')
 equations_cont = st.beta_container()
 equations_left_cont, equations_right_cont = st.beta_columns(2)
-
-# interval_cont = st.beta_container()
-# request_analytical, request_numerical = st.beta_columns(2)
 results_cont = st.spinner('Calculation in progress...')
 footer_cont = st.beta_container()
 
@@ -373,45 +350,71 @@ with sidebar:
     if equation_select == "Mathematical pendulum":
         mp_l = st.sidebar.number_input("l = ", value=1.5, min_value=0.1)
         st.sidebar.markdown("Initial conditions:")
-        y0 = [st.sidebar.number_input("C1 = ", value=1.0),
-              st.sidebar.number_input("C2= ", value=1.0)]
+        y0 = [st.sidebar.number_input("y(0) = ", value=1.0),
+              st.sidebar.number_input("y'(0) = ", value=1.0)]
         numeric_f, init_cond, params, ode_str, general_str = set_inputs_pendulum()
 
-    elif equation_select == "Damped oscillations":
+    elif equation_select == "Mass-Damper-Spring":
         do_m = st.sidebar.number_input("mass = ", value=1.0, min_value=0.1, key='kg')
         do_b = st.sidebar.number_input("damping force = ", value=14.0, min_value=0.1, key='N')
         do_l = st.sidebar.number_input("stretched spring = ", value=0.2, min_value=0.1, key='m')
         st.sidebar.markdown("Initial conditions:")
-        y0 = [np.radians(st.sidebar.number_input("C1 = ", value=1.0)),
-              st.sidebar.number_input("C2 = ", value=1.0)]
+        y0 = [np.radians(st.sidebar.number_input("y(0) = ", value=1.0)),
+              st.sidebar.number_input("y'(0) = ", value=1.0)]
         numeric_f, init_cond, params, ode_str, general_str = set_inputs_model_oscillations()
 
     elif equation_select == "Population model":
         pm_m = st.sidebar.number_input("M = ", value=1000.0, min_value=0.1)
         pm_a = st.sidebar.number_input("a = ", value=2.1)
         st.sidebar.markdown("Initial conditions:")
-        y0 = [st.sidebar.number_input("C1 = ", value=1.0)]
+        y0 = [st.sidebar.number_input("y(0) = ", value=1.0)]
         numeric_f, init_cond, params, ode_str, general_str = set_inputs_model_population()
 
     elif equation_select == "ay''(x) * by'(x) + cy(x) = d":
-        so_a = st.sidebar.number_input("a = ", value=1.0)
+        so_a = st.sidebar.number_input("a = ", value=1.0, min_value=0.1)
         so_b = st.sidebar.number_input("b = ", value=1.0)
         so_c = st.sidebar.number_input("c = ", value=1.0)
         so_d = st.sidebar.number_input("d = ", value=1.0)
         st.sidebar.markdown("Initial conditions:")
-        y0 = [st.sidebar.number_input("C1 = ", value=1.0),
-              st.sidebar.number_input("C2 = ", value=1.0)]
+        y0 = [st.sidebar.number_input("y(0) = ", value=1.0),
+              st.sidebar.number_input("y'(0) = ", value=1.0)]
         numeric_f, init_cond, params, ode_str, general_str = set_inputs_second_order()
+
+    elif equation_select == 'Skydiver':
+        sk_m = st.sidebar.number_input("mass = ", value=90.0, min_value=1.0, key='kg')
+        st.sidebar.markdown("Initial conditions:")
+        y0 = [st.sidebar.number_input("y(0) = ", value=1.0),
+              st.sidebar.number_input("y'(0) = ", value=1.0)]
+        numeric_f, init_cond, params, ode_str, general_str = set_inputs_skydiver()
+
+    elif equation_select == 'Manometer':
+        mn_l = st.sidebar.number_input("length = ", value=0.5, min_value=0.1, key='m')
+        st.sidebar.markdown("Initial conditions:")
+        y0 = [st.sidebar.number_input("y(0) = ", value=0.2),
+              st.sidebar.number_input("y'(0) = ", value=0.0)]
+        numeric_f, init_cond, params, ode_str, general_str = set_inputs_manometer()
+
+    elif equation_select == "ay'''(x) * by''(x) + cy'(x) + dy(x)= e":
+        o3_a = st.sidebar.number_input("a = ", value=1.0, min_value=0.1)
+        o3_b = st.sidebar.number_input("b = ", value=1.0)
+        o3_c = st.sidebar.number_input("c = ", value=1.0)
+        o3_d = st.sidebar.number_input("d = ", value=1.0)
+        o3_e = st.sidebar.number_input("e = ", value=1.0)
+        st.sidebar.markdown("Initial conditions:")
+        y0 = [st.sidebar.number_input("y(0) = ", value=1.0),
+              st.sidebar.number_input("y'(0) = ", value=1.0),
+              st.sidebar.number_input("y''(0) = ", value=1.0)]
+        numeric_f, init_cond, params, ode_str, general_str = set_inputs_third_order()
 
     st.sidebar.markdown("***")
     st.sidebar.markdown("RKF45")
-    h_min, h_max = st.sidebar.slider("Size of the step:", 0.1, 1000.0, (100.0, 700.0), 0.1,
+    h_min, h_max = st.sidebar.slider("Size of the step:", 0.1, 10000.0, (1.0, 7000.0), 0.1,
                                      help="Value is divided by 1000")
-    tol = st.sidebar.slider("Tolerance:", -5, 10, 3,
+    tol = st.sidebar.slider("Tolerance:", 1, 10, 3,
                             help="Higher value means higher precision,"
                                  "Computation method: 1e(-value)")
-    h_min = h_min / 1000
-    h_max = h_max / 1000
+    h_min = h_min / 10000
+    h_max = h_max / 10000
     tol = 1 * 10 ** (-tol)
     st.sidebar.write('Minimal step = ', h_min)
     st.sidebar.write('Maximal step = ', h_max)
@@ -431,52 +434,40 @@ with equations_cont:
         a = equations_left_cont.number_input("Start of the interval:", value=0)
         b = equations_right_cont.number_input("End of the interval:", value=10)
 
-    # st.subheader("Selected Equations")
-    # equations_left_cont.write("Selected ordinary differential equation:")
-    # equations_left_cont.latex(ode_str)
-    # equations_right_cont.write("General solution of selected ODE:")
-    # equations_right_cont.latex(general_str)
-    # equations_left_cont.write('Initial conditions:')
-    # equations_left_cont.latex(init_cond)
-    # equations_right_cont.write('Parameters:')
-    # equations_right_cont.latex(params)
-    # a = equations_left_cont.number_input("Start of the interval:", value=0)
-    # b = equations_right_cont.number_input("End of the interval:", value=10)
-
 with results_cont:
     with st.spinner('Calculation in progress...'):
-        # if b <= a:
-        #     st.error('End of the interval has to be higher than start')
-        # else:
-        n = st.slider("Number of steps:", 5, 100, 30)
-        h = (b - a) / n
-        st.write('Step size: ', h)
+        if b <= a:
+            st.error('End of the interval has to be higher than start')
+        else:
+            n = st.slider("Number of steps:", 5, 100, 30)
+            h = (b - a) / n
+            st.write('Step size: ', h)
 
-        update_requested = False
+            update_requested = False
 
-        analytic_ch, analytic_t = calc_analytical_chart()
+            analytic_ch, analytic_t = calc_analytical_chart()
 
-        if st.button('Calculate by numerical methods'):
-            update_requested = True
+            if st.button('Calculate by numerical methods'):
+                update_requested = True
 
-        numeric_df, rkf45, rkf45_status = calc_numerical(update_requested)
-        if -1 == rkf45_status:
-            st.warning("RKF45 could not converge to the required tolerance with chose minimum step size,"
-                       " please adjust the parameters.")
+            numeric_df, rkf45, rkf45_status = calc_numerical(update_requested)
+            if -1 == rkf45_status:
+                st.warning("RKF45 could not converge to the required tolerance with chose minimum step size,"
+                           " please adjust the parameters.")
 
-        st.subheader("Results")
-        get_chart(numeric_df, rkf45, rkf45_status, analytic_ch, update_requested)
-        st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
+            st.subheader("Results")
+            get_chart(numeric_df, rkf45, rkf45_status, analytic_ch, update_requested)
+            st.text("Note: You can select methods in the legend (for multiple selection hold SHIFT and click)")
 
-        if update_requested:
-            st.markdown("***")
-            table = get_table(numeric_df, analytic_t)
-            st.write(table)
-            st.markdown(get_table_download_link_csv(table), unsafe_allow_html=True)
-            st.subheader("Comparison of results")
-            calc_truncation(table)
+            if update_requested:
+                st.markdown("***")
+                table = get_table(numeric_df, analytic_t)
+                st.write(table)
+                st.markdown(get_table_download_link_csv(table), unsafe_allow_html=True)
+                st.subheader("Comparison of results")
+                do_comparison(table)
 
-        st.markdown('***')
-        st.subheader("Useful links:")
-        st.markdown(link, unsafe_allow_html=True)
-        st.write("Streamlit version: " + st.__version__)
+            st.markdown('***')
+            st.subheader("Useful links:")
+            st.markdown(link, unsafe_allow_html=True)
+            st.write("Streamlit version: " + st.__version__)
