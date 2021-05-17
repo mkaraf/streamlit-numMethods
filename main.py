@@ -15,7 +15,7 @@ st.set_page_config(
     layout='wide'
 )
 
-pdf = '[Explanation of exercises](https://github.com/mkaraf/streamlit-numMethods/blob/4261033118c6848c392ed7cae4c2e86b7829a3b4/populacni_model.pdf)'
+pdf = '[Explanation of exercises](https://github.com/mkaraf/streamlit-numMethods/blob/6dc0c0e7e0f151003e546b836d106d525fe30ee4/priklady.pdf)'
 link = '[ODE Math Laboratory](http://calculuslab.deltacollege.edu/ODE/ODE-h.html)'
 
 METHODS = ["NONE", "Euler", "Heun", "Runge-Kutta 2", "Runge-Kutta 3", "Runge-Kutta 4", "Adams-Bashforth 2",
