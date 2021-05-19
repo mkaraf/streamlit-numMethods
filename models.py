@@ -111,7 +111,7 @@ def model_third_order(x, y):
     global o3_c
     global o3_d
     global o3_e
-    return y[2], y[1], (o3_e * sin(x) - o3_d * y[0] - o3_c * y[1] - o3_b * y[2]) / o3_a
+    return y[1], y[2], (o3_e * sin(x) - o3_d * y[0] - o3_c * y[1] - o3_b * y[2]) / o3_a
 
 # --------------- SETTERS ---------------  #
 def set_params_population(a, m):
